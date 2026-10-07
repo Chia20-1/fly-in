@@ -5,6 +5,13 @@
 
 # Instruction
 
+How to access the map:
+
+```sh
+python3 main.py <map_file_path>  # Required positional argument
+make run                       # Use the default map
+make run MAP=<map_file_path>    # Override the default map
+```
 
 # Architecture
 ```
@@ -40,4 +47,6 @@ root/
 
 # Visual Representation
 
-# 
+# Resources
+- **Dijkstra Algorithm:** Hand-drawn practice for finding the shortest path across vertices — [YouTube](https://www.youtube.com/watch?v=eFZCPlZCyIM)
+- **Dijkstra Alrgorithm:** Concept explaination and understanding — [Youtube](https://www.youtube.com/watch?v=bZkzH5x0SKU)
