@@ -1,4 +1,4 @@
-from error import MapValidationError, MapParserError
+from error import MapParserError
 
 class MapParser:
 	"""

@@ -1,4 +1,4 @@
-from parser import MapParser
+from map_parser import MapParser
 from error import MapValidationError, MapParserError
 from sys import argv, stderr, exit
 
