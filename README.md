@@ -30,6 +30,36 @@ root/
 |-- simulation.py
 ```
 *Project's Folder & File Structure*
+```
+main.py
+   |
+   v
+MapParser
+   |
+   |-- 1. Read file
+   |-- 2. Parse lines into raw dictionaries
+   |-- 3. Check syntax (missing :, unknown key)
+   |-- 4. Check structural completeness:
+   |       - Exactly one start_hub?
+   |       - Exactly one end_hub?
+   |       - Required hubs/connections present?
+   |
+   |-- ERROR? --> Raise MapParserError
+   |                  |
+   |                  v
+   |              main.py catches error
+   |              Exit program
+   |
+   v
+Pydantic
+   |
+   |-- Convert values to types
+   |-- Validate field constraints
+   |-- Apply default values
+   |
+   v
+Build simulation graph
+```
 
 # Map Config
 | Entity | Attributes |
