@@ -2,13 +2,6 @@ from pydantic import BaseModel, Field
 from error import MapValidationError
 
 
-class RawConfig(BaseModel):
-	@staticmethod
-	def _parse_metadata(metadata: str) -> dict[str, str]:
-		attributes: dict[str, str] = []
-		if not metadata:
-			return attributes
-
 class ZoneConfig(BaseModel):
 	name: str
 	x: int

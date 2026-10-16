@@ -12,7 +12,7 @@ def	_get_file()->str:
 def _get_raw_map(file_path: str)->dict[str, list[str]]:
 	try:
 		parser = MapParser(file_path)
-		return parser.parse()
+		return parser._parse_raw()
 	except (MapParserError, MapValidationError) as error:
 		print(f"Error: {error}", file=stderr)
 		exit(1)
