@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Literal
 from error import MapValidationError
 
 
@@ -6,11 +7,15 @@ class ZoneConfig(BaseModel):
 	name: str
 	x: int
 	y: int
+	zone: Literal["normal", "blocked", "restricted", "priority"] = "normal"
+	color: str | None = None
+	max_drones: int = Field(default=1, gt=0)
 
 
 class ConnectionConfig(BaseModel):
 	from_zone: str
 	to_zone: str
+	max_link_capacity: int = Field(default=1, gt=0)
 
 
 class MapConfig(BaseModel):
@@ -19,3 +24,8 @@ class MapConfig(BaseModel):
 	end_hub: ZoneConfig
 	hub: list[ZoneConfig]
 	connection: list[ConnectionConfig]
+
+
+if __name__ == "__main__":
+	connection = ConnectionConfig(from_zone="start", to_zone="middle")
+	print(connection)
