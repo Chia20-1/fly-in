@@ -11,8 +11,17 @@ class MapParser:
     def __init__(self, file_path: str) -> None:
         self.file_path = file_path
 
-    def parse(self) -> None:
-        pass
+    def parse(self) -> dict[str, object]:
+        raw_map = self._parse_raw()
+
+        config_dict = {
+           "nb_drones": raw_map["nb_drones"][0][1],
+           "start_hub": self._parse_entries("start_hub", raw_map)[0],
+           "end_hub": self._parse_entries("end_hub", raw_map)[0],
+           "hub": self._parse_entries("hub", raw_map),
+           "connection": self._parse_entries("connection", raw_map),
+        }
+        return config_dict
 
     def _get_lines(self) -> list[str]:
         lines: list[str] = []
@@ -23,13 +32,13 @@ class MapParser:
             raise MapParserError("Failed to open map file")
         return lines
 
-    def _read(self) -> dict[str, list[str]]:
-        raw_map: dict[str, list[str]] = {}
+    def _read(self) -> dict[str, list[tuple[int, str]]]:
+        raw_map: dict[str, list[tuple[int,str]]] = {}
         lines: list[str] = self._get_lines()
 
         for line_number, line in enumerate(lines, start=1):
             line = line.removesuffix("\n")
-            if not line or line.lstrip().startswith("#"):
+            if not line.strip() or line.lstrip().startswith("#"):
                 continue
             key, separator, value = line.partition(":")
             if not separator:
@@ -45,14 +54,19 @@ class MapParser:
                     f"Invalid map line {line_number}: missing space after ':'"
                 )
             value = value[1:]
+            if value != value.strip():
+                raise MapParserError(
+                    f"Invalid map line {line_number}: "
+                    f"unexpected whitesapce around value for '{key}'"
+                )
             if not value:
                 raise MapParserError(
                     f"Invalid map line {line_number}: empty value for '{key}'"
                 )
-            raw_map.setdefault(key, []).append(value)
+            raw_map.setdefault(key, []).append((line_number,value))
         return raw_map
 
-    def _check_structure(self, raw_map: dict[str, list[str]]) -> None:
+    def _check_structure(self, raw_map: dict[str, list[tuple[int,str]]]) -> None:
         for key in ("start_hub", "end_hub", "nb_drones"):
             if len(raw_map.get(key, [])) != 1:
                 raise MapParserError(f"Map must contain exactly one {key}")
@@ -61,8 +75,8 @@ class MapParser:
             if not raw_map.get(key):
                 raise MapParserError(f"Map must contain at least one {key}")
 
-    def _parse_raw(self) -> dict[str, list[str]]:
-        raw_map: dict[str, list[str]] = self._read()
+    def _parse_raw(self) -> dict[str, list[tuple[int,str]]]:
+        raw_map: dict[str, list[tuple[int,str]]] = self._read()
         self._check_structure(raw_map)
         return raw_map
 
@@ -73,6 +87,8 @@ class MapParser:
         if not metadata.startswith("[") or not metadata.endswith("]"):
             raise MapParserError("Invalid metadata brackets")
         content = metadata[1:-1]
+        if content != " ".join(content.split()):
+            raise MapParserError("Invalid whitespace in metadata")
         for item in content.split():
             if item.count("=") != 1:
                 raise MapParserError(f"Invalid metadata: {item}")
@@ -137,6 +153,27 @@ class MapParser:
         )
         config.update(attributes)
         return config
+
+    def _parse_entries(
+            self,
+            key: str,
+            raw_map: dict[str, list[tuple[int, str]]],
+    ) -> list[dict[str, str]]:
+        entries: list[dict[str, str]] = []
+
+        for line_number, value in raw_map.get(key, []):
+            try:
+                if key == "connection":
+                    entry = self._parse_connection(value)
+                else:
+                    entry = self._parse_zone(value)
+            except MapParserError as error:
+                raise MapParserError(
+                    f"Invalid map line {line_number}: {error}"
+                ) from error
+
+            entries.append(entry)
+        return entries
 
     def _validate_metadata_keys(self,
                                 attributes: dict[str, str],

@@ -12,7 +12,7 @@ def	_get_file()->str:
 def _get_raw_map(file_path: str)->dict[str, list[str]]:
 	try:
 		parser = MapParser(file_path)
-		return parser._parse_raw()
+		return parser.parse()
 	except (MapParserError, MapValidationError) as error:
 		print(f"Error: {error}", file=stderr)
 		exit(1)
@@ -23,5 +23,4 @@ def _get_config(raw_map: dict[str, list[str]])->MapConfig:
 if __name__ == "__main__":
 	file_path = _get_file()
 	raw_map = _get_raw_map(file_path)
-	# config = _get_config(raw_map)
 	print(raw_map)
