@@ -13,11 +13,16 @@ class MapParser:
 
     def parse(self) -> dict[str, object]:
         raw_map = self._parse_raw()
+        start = self._parse_entries("start_hub", raw_map)[0]
+        end = self._parse_entries("end_hub", raw_map)[0]
+
+        start.pop("max_drones", None)
+        end.pop("max_drones", None)
 
         config_dict = {
            "nb_drones": raw_map["nb_drones"][0][1],
-           "start_hub": self._parse_entries("start_hub", raw_map)[0],
-           "end_hub": self._parse_entries("end_hub", raw_map)[0],
+           "start_hub": start,
+           "end_hub": end,
            "hub": self._parse_entries("hub", raw_map),
            "connection": self._parse_entries("connection", raw_map),
         }

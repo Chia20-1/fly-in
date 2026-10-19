@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
+from sys import stderr, exit
 from typing import Literal
 from error import MapValidationError
 
@@ -24,8 +25,3 @@ class MapConfig(BaseModel):
 	end_hub: ZoneConfig
 	hub: list[ZoneConfig]
 	connection: list[ConnectionConfig]
-
-
-if __name__ == "__main__":
-	connection = ConnectionConfig(from_zone="start", to_zone="middle")
-	print(connection)
