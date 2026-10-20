@@ -43,5 +43,4 @@ class MapValidation():
 					f"{connection.from_zone}--{connection.to_zone}"
 				)
 			connections.add(pair)
-
 		

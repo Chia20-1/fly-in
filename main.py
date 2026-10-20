@@ -1,5 +1,6 @@
 from map_parser import MapParser
 from map_config import MapConfig
+from map_validation import MapValidation
 from pydantic import ValidationError
 from error import MapValidationError, MapParserError
 from map_config import MapConfig
@@ -33,8 +34,17 @@ def _get_config(raw_map: dict[str, object])->MapConfig:
 		exit(1)
 
 
+def	_validate_config(config: MapConfig)->None:
+	try:
+		validation = MapValidation(config)
+		validation.validate()
+	except MapValidationError as error:
+		print(f"{error}", file=stderr)
+
+
 if __name__ == "__main__":
 	file_path = _get_file()
 	raw_map = _get_raw_map(file_path)
 	config = _get_config(raw_map)
+	_validate_config(config)
 	print(config)
