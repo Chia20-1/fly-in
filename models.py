@@ -64,6 +64,12 @@ class Graph:
         self.zones = self._init_zones()
         self.connections = self._init_connections()
 
+        for zone in self.zones:
+            if zone.name == self.config.start_hub.name:
+                self.start_hub = zone
+            if zone.name == self.config.end_hub.name:
+                self.end_hub = zone
+
     def _init_drones(self) -> list[Drone]:
         """
         """
