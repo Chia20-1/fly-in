@@ -1,5 +1,6 @@
 class MapValidationError(Exception):
-	pass
+    pass
+
 
 class MapParserError(Exception):
-	pass
+    pass

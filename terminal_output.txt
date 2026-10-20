@@ -1,43 +1,12 @@
-{
-	'nb_drones': ['12'],
-	'start_hub': ['start 0 -1 [color=green]'],
-	'hub': [
-		 'gate1 1 0 [color=orange max_drones=1]', 
-		 'gate2 2 0 [color=orange max_drones=1]', 
-		 'gate3 3 0 [color=orange max_drones=1]',
-		 'waiting_area1 1 1 [color=blue max_drones=4]',
-		 'waiting_area2 2 1 [color=blue max_drones=4]',
-		 'waiting_area3 3 1 [color=blue max_drones=4]',
-		 'restricted_tunnel1 4 0 [zone=restricted color=red max_drones=2]',
-		 'restricted_tunnel2 5 0 [zone=restricted color=red max_drones=2]',
-		 'restricted_tunnel3 6 0 [zone=restricted color=red max_drones=2]',
-		 'priority_bypass1 3 2 [zone=priority color=cyan max_drones=3]',
-		 'priority_bypass2 4 2 [zone=priority color=cyan max_drones=3]',
-		 'convergence 7 0 [color=yellow max_drones=6]',
-		 'final_bottleneck 8 0 [color=orange max_drones=3]'],
-		 'end_hub': ['goal 9 0 [color=green]'
-		],
-	'connection': [
-		 'start-gate1 [max_link_capacity=1]',
-		 'start-gate2 [max_link_capacity=1]',
-		 'start-gate3 [max_link_capacity=1]',
-		 'gate1-gate2 [max_link_capacity=1]',
-		 'gate2-gate3 [max_link_capacity=1]',
-		 'gate1-waiting_area1',
-		 'gate2-waiting_area2',
-		 'gate3-waiting_area3',
-		 'waiting_area1-waiting_area2',
-		 'waiting_area2-waiting_area3',
-		 'gate3-restricted_tunnel1',
-		 'restricted_tunnel1-restricted_tunnel2',
-		 'restricted_tunnel2-restricted_tunnel3',
-		 'restricted_tunnel3-convergence', 
-		 'waiting_area1-priority_bypass1',
-		 'waiting_area2-priority_bypass2',
-		 'priority_bypass1-priority_bypass2',
-		 'priority_bypass2-convergence [max_link_capacity=2]',
-		 'convergence-final_bottleneck [max_link_capacity=3]',
-		 'final_bottleneck-goal',
-		 'waiting_area3-convergence'
-		]
-}
+nb_drones=5
+start_hub=ZoneConfig(name='start', x=0, y=0, zone='normal', color='green', max_drones=1)
+end_hub=ZoneConfig(name='goal', x=4, y=0, zone='normal', color='green', max_drones=1)
+hub=[ZoneConfig(name='junction', x=1, y=0, zone='normal', color='yellow', max_drones=2), 
+	 ZoneConfig(name='dead_end', x=1, y=1, zone='normal', color='red', max_drones=1), 
+	 ZoneConfig(name='correct_path', x=2, y=0, zone='normal', color='blue', max_drones=1), 
+	 ZoneConfig(name='intermediate', x=3, y=0, zone='normal', color='blue', max_drones=1)]
+connection=[ConnectionConfig(from_zone='start', to_zone='junction', max_link_capacity=2),
+			ConnectionConfig(from_zone='junction', to_zone='dead_end', max_link_capacity=1),
+			ConnectionConfig(from_zone='junction', to_zone='correct_path', max_link_capacity=1), 
+			ConnectionConfig(from_zone='correct_path', to_zone='intermediate', max_link_capacity=1),
+			ConnectionConfig(from_zone='intermediate', to_zone='goal', max_link_capacity=1)]

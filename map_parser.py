@@ -19,7 +19,7 @@ class MapParser:
         start.pop("max_drones", None)
         end.pop("max_drones", None)
 
-        config_dict = {
+        config_dict: dict[str, object] = {
            "nb_drones": raw_map["nb_drones"][0][1],
            "start_hub": start,
            "end_hub": end,
@@ -38,7 +38,7 @@ class MapParser:
         return lines
 
     def _read(self) -> dict[str, list[tuple[int, str]]]:
-        raw_map: dict[str, list[tuple[int,str]]] = {}
+        raw_map: dict[str, list[tuple[int, str]]] = {}
         lines: list[str] = self._get_lines()
 
         for line_number, line in enumerate(lines, start=1):
@@ -68,10 +68,13 @@ class MapParser:
                 raise MapParserError(
                     f"Invalid map line {line_number}: empty value for '{key}'"
                 )
-            raw_map.setdefault(key, []).append((line_number,value))
+            raw_map.setdefault(key, []).append((line_number, value))
         return raw_map
 
-    def _check_structure(self, raw_map: dict[str, list[tuple[int,str]]]) -> None:
+    def _check_structure(
+            self,
+            raw_map: dict[str, list[tuple[int, str]]]
+    ) -> None:
         for key in ("start_hub", "end_hub", "nb_drones"):
             if len(raw_map.get(key, [])) != 1:
                 raise MapParserError(f"Map must contain exactly one {key}")
@@ -80,8 +83,8 @@ class MapParser:
             if not raw_map.get(key):
                 raise MapParserError(f"Map must contain at least one {key}")
 
-    def _parse_raw(self) -> dict[str, list[tuple[int,str]]]:
-        raw_map: dict[str, list[tuple[int,str]]] = self._read()
+    def _parse_raw(self) -> dict[str, list[tuple[int, str]]]:
+        raw_map: dict[str, list[tuple[int, str]]] = self._read()
         self._check_structure(raw_map)
         return raw_map
 
