@@ -6,9 +6,10 @@ class Drone:
     """
     id: int = 0
 
-    def __init__(self) -> None:
+    def __init__(self, start_hub: "Zone") -> None:
         self.id = self.__class__.id
         self._new_id()
+        self.current_zone: Zone = start_hub
 
     @classmethod
     def _new_id(cls) -> None:
@@ -60,15 +61,14 @@ class Graph:
         self._init_all()
 
     def _init_all(self) -> None:
-        self.drones = self._init_drones()
         self.zones = self._init_zones()
         self.connections = self._init_connections()
-
         for zone in self.zones:
             if zone.name == self.config.start_hub.name:
                 self.start_hub = zone
             if zone.name == self.config.end_hub.name:
                 self.end_hub = zone
+        self.drones = self._init_drones()
 
     def _init_drones(self) -> list[Drone]:
         """
@@ -76,7 +76,7 @@ class Graph:
         nb_drones = self.config.nb_drones
         drones: list[Drone] = []
         for _ in range(nb_drones):
-            drone = Drone()
+            drone = Drone(self.start_hub)
             drones.append(drone)
         return (drones)
 
