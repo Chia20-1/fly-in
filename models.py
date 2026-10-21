@@ -34,7 +34,7 @@ class Zone:
         self.zone: str = zone
         self.color: str | None = color
         self.max_drones: int = max_drones
-        
+      
 
 class Connection:
     """
@@ -91,9 +91,8 @@ class Graph:
             if zone.name == self.config.start_hub.name:
                 self.start_hub = zone
             if zone.name == self.config.end_hub.name:
-                self.end_hub = zone     
+                self.end_hub = zone    
         return zones
-
 
     def _init_connections(self) -> list[Connection]:
         """
