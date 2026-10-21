@@ -8,25 +8,61 @@ from sys import argv, stderr, exit
 
 
 def _get_file() -> str:
+    """
+    Get the map file path from the command-line arguments.
+
+    Returns:
+        The supplied map file path.
+
+    Raises:
+        SystemExit: With status 1 after printing ussage to standard error
+            if exactly one argument is provided.
+    """
     if len(argv) != 2:
-        print("Usage example: python3 main.py map_file_path.txt")
+        print("Usage example: python3 main.py map_file_path.txt", file=stderr)
         exit(1)
     return argv[1]
 
 
 def _get_raw_map(file_path: str) -> dict[str, object]:
+    """
+    Read and parse the map file.
+
+    Args:
+        file_path: Path to the map file.
+
+    Returns:
+        Parsed map data, with numeric values still stored as strings.
+
+    Raises:
+        SystemExit: Wtih status 1 after printing a file access, decoding,
+            or parsing error to standard error.
+    """
     try:
         parser = MapParser(file_path)
         return parser.parse()
-    except (MapParserError, MapValidationError) as error:
+    except (MapParserError, UnicodeDecodeError) as error:
         print(f"Error: {error}", file=stderr)
         exit(1)
 
 
 def _get_config(raw_map: dict[str, object]) -> MapConfig:
+    """
+    Convert raw map data into a configuration and validate its fields.
+
+    Args:
+        raw_map: Map data returned by the parser.
+
+    Returns:
+        A configuration with converted types, validated fields, and defaults.
+
+    Raises:
+        SystemExit: With status 1 after printing field validation errors
+            to standard error.
+    """
     try:
         config = MapConfig.model_validate(raw_map)
-        return (config)
+        return config
     except ValidationError as error:
         for detail in error.errors():
             field = " ".join(map(str, detail["loc"]))
@@ -35,6 +71,17 @@ def _get_config(raw_map: dict[str, object]) -> MapConfig:
 
 
 def _validate_config(config: MapConfig) -> None:
+    """
+    Check zone uniqueness and connection consistency.
+
+    Args:
+        config: Map configuration with validated field values.
+
+    Raises:
+        SystemExit: With status 1 after printing a validation error to
+            standard error if zone names repeat, connection endpoints
+            are unknown, or connections are duplicated.
+    """
     try:
         validation = MapValidation(config)
         validation.validate()

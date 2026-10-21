@@ -3,6 +3,11 @@ from map_config import MapConfig, ZoneConfig
 
 class Drone:
     """
+    Represent a drone and its current location.
+
+    Attributes:
+        id: Indentifier assigned when drone is created.
+        current_zone: Zone currently occupied by the drone.
     """
     id: int = 1
 
@@ -18,6 +23,15 @@ class Drone:
 
 class Zone:
     """
+    Represent a zone in the graph.
+
+    Attributes:
+        name: Zone name.
+        x: Horizontal coordinate.
+        y: Vertical coordinate.
+        zone: Zone category.
+        color: Display color, if specified.
+        max_drones: Maximum number of drones allowed in the zone.
     """
     def __init__(
         self,
@@ -34,10 +48,16 @@ class Zone:
         self.zone: str = zone
         self.color: str | None = color
         self.max_drones: int = max_drones
-      
+
 
 class Connection:
     """
+    Represent a bidirectional connection between two zones.
+
+    Attributes:
+        from_zone: Name of one endpoint.
+        to_zone: Name of the other endpoint.
+        max_link_capacity: Maximum number of drones allowed on the connection.
     """
     def __init__(
         self,
@@ -52,22 +72,46 @@ class Connection:
 
 class Graph:
     """
+    Build the map's zones, connections, and drones from configuration.
+
+    Attributes:
+        config: Configuration used to build the graph.
+        nb_drones: Number of drones to create.
+        zones: All zones in the map.
+        connections: Connections between zones.
+        drones: Drones initially placed at the starting hub.
+        start_hub: Starting zone.
+        end_hub: Destination zone.
     """
     def __init__(
         self,
         config: MapConfig,
     ) -> None:
+        """
+        Create all zones and assign the starting and destination.
+
+        Returns:
+            Zones in starting hub, destination hub, then intermediate
+            hub order.
+        """
         self.config = config
         self.nb_drones = self.config.nb_drones
         self._init_all()
 
     def _init_all(self) -> None:
+        """
+        Initialize and store all zones, connections, and drones.
+        """
         self.zones = self._init_zones()
         self.connections = self._init_connections()
         self.drones = self._init_drones()
 
     def _init_drones(self) -> list[Drone]:
         """
+        Create the configured number of drones at the starting hub.
+
+        Returns:
+            Newly created drones.
         """
         drones: list[Drone] = [
             Drone(self.start_hub)
@@ -77,6 +121,10 @@ class Graph:
 
     def _init_zones(self) -> list[Zone]:
         """
+        Create all zones and assign the starting and destination.
+
+        Returns:
+            Zones in starting hub, destination hub, then intermediate hub.
         """
         zone_configs: list[ZoneConfig] = [
             self.config.start_hub,
@@ -91,11 +139,15 @@ class Graph:
             if zone.name == self.config.start_hub.name:
                 self.start_hub = zone
             if zone.name == self.config.end_hub.name:
-                self.end_hub = zone    
+                self.end_hub = zone
         return zones
 
     def _init_connections(self) -> list[Connection]:
         """
+        Create connections from the map configuration.
+
+        Returns:
+            Connections with their endpoint names and capacities.
         """
         connections: list[Connection] = [
             Connection(item.from_zone, item.to_zone, item.max_link_capacity)
@@ -105,6 +157,10 @@ class Graph:
 
     def _init_adjacency(self) -> dict[str, list[Connection]]:
         """
+        Group connections by their endpoint zones.
+
+        Returns:
+            A mapping from each zone name to its incident connection.
         """
         adjacency: dict[str, list[Connection]] = {
             zone.name: []

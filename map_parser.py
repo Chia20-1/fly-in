@@ -3,15 +3,39 @@ from error import MapParserError
 
 class MapParser:
     """
+    Parse a map file into configuration data.
+
+    Attributes:
+        VALID_KEYS: Supported declaration keys.
+        file_path: Path to the map file.
     """
     VALID_KEYS = frozenset({
         "nb_drones", "start_hub", "end_hub", "hub", "connection"
     })
 
     def __init__(self, file_path: str) -> None:
+        """
+        Store the map file path without reading the file.
+
+        Args:
+            file_path: Path to the map file
+        """
         self.file_path = file_path
 
     def parse(self) -> dict[str, object]:
+        """
+        Read and parse the map into configuration data.
+
+        Discard max_drones metadata from the starting and destination hubs.
+
+        Returns:
+            A dictionary containing the drone count, hubs, and connections.
+            Numeric values remain strings for later configuration validation.
+
+        Raises:
+            MapParserError: If file access fails or the map's syntax or
+                declaration structure is invalid.
+        """
         raw_map = self._parse_raw()
         start = self._parse_entries("start_hub", raw_map)[0]
         end = self._parse_entries("end_hub", raw_map)[0]
@@ -29,6 +53,18 @@ class MapParser:
         return config_dict
 
     def _get_lines(self) -> list[str]:
+        """
+        Read all lines from the map file using UTF-8 encoding.
+
+        Returns:
+            File lines, including their trailing newline characters
+            when present.
+
+        Raises:
+            MapParserError: If an operating system error prevents opening or
+                reading the file.
+            UnicodeDecodeError: If the file contains invalid UTF-8 data.
+        """
         lines: list[str] = []
         try:
             with open(self.file_path, "r", encoding="utf-8") as file:
@@ -38,6 +74,19 @@ class MapParser:
         return lines
 
     def _read(self) -> dict[str, list[tuple[int, str]]]:
+        """
+        Read declarations while preserving their source line numbers.
+
+        Skip blank lines and full-line comments.
+
+        Returns:
+            A dictionary mapping declaration keys to lists of line-number
+            and value pairs.
+
+        Raises:
+            MapParserError: If file access fails, a declaration has invalid
+                syntax, or the first declaration is not nb_drones.
+        """
         raw_map: dict[str, list[tuple[int, str]]] = {}
         lines: list[str] = self._get_lines()
 
@@ -80,6 +129,16 @@ class MapParser:
             self,
             raw_map: dict[str, list[tuple[int, str]]]
     ) -> None:
+        """
+        Check that required declarations occur the expected number of times.
+
+        Args:
+            raw_map: Declarations grouped by key, with line numbers and values.
+
+        Raises:
+            MapParserError: If nb_drones, start_hub, or end_hub does not occur
+                exactly once, or no hub or connection is declared.
+        """
         for key in ("start_hub", "end_hub", "nb_drones"):
             if len(raw_map.get(key, [])) != 1:
                 raise MapParserError(f"Map must contain exactly one {key}")
@@ -89,11 +148,36 @@ class MapParser:
                 raise MapParserError(f"Map must contain at least one {key}")
 
     def _parse_raw(self) -> dict[str, list[tuple[int, str]]]:
+        """
+        Read declarations and check their required counts.
+
+        Returns:
+            Declarations grouped by key, retaining line numbers and raw values.
+
+        Raises:
+            MapParserError: If file access fails, declaration syntax is invalid
+                or required declaration counts are incorrect.
+        """
         raw_map: dict[str, list[tuple[int, str]]] = self._read()
         self._check_structure(raw_map)
         return raw_map
 
     def _parse_metadata(self, metadata: str | None) -> dict[str, str]:
+        """
+        Parse optional bracketed metadata into key-value pairs.
+
+        Args:
+            metadata: Bracketed, space-separated key=value pairs, or an
+                empty value when metadata is present.
+
+        Returns:
+            Parsed attributes, or an empty dictionary when metadata
+            is absent.
+
+        Raises:
+            MapParserError: If brackets, whitespace, or key-value pairs are
+                malformed, or a key appears more than once.
+        """
         attributes: dict[str, str] = {}
         if not metadata:
             return attributes
@@ -114,6 +198,20 @@ class MapParser:
         return attributes
 
     def _parse_connection(self, value: str) -> dict[str, str]:
+        """
+        Parse connection endpoints and optional capacity metadata.
+
+        Args:
+            value: Two zone names separated by a hyphen, optionally followed
+                by a space and bracketed metadata.
+
+        Returns:
+            Endpoint names and any supplied max_link_capacity, all as strings.
+
+        Raises:
+            MapParserError: If the connection format, whitespace, or metadata
+                is invalid, or metadata conflicts with an endpoint field.
+        """
         body, separator, metadata = value.partition("[")
         if separator:
             if not body.endswith(" "):
@@ -139,6 +237,22 @@ class MapParser:
         return config
 
     def _parse_zone(self, value: str) -> dict[str, str]:
+        """
+        Parse a zone's name, coordinates, and optional metadata.
+
+        Args:
+            value: A zone name and two coordiantes separated by single spaces,
+                optionally followed by a space and bracketed metadata.
+
+        Returns:
+            The zone's name, coordinates, and supplied metadata,
+            all as strings.
+
+        Raises:
+            MapParserError: If the zone format, name, whitespace, or metadata
+                is invalid, or metadata conflicts with a name or
+                coordinate field.
+        """
         body, separator, metadata = value.partition("[")
         if separator:
             if not body.endswith(" "):
@@ -176,6 +290,22 @@ class MapParser:
             key: str,
             raw_map: dict[str, list[tuple[int, str]]],
     ) -> list[dict[str, str]]:
+        """
+        Parse declarations for a key and add line numbers to parsing errors.
+
+        Args:
+            key: Declaration key to parse. Use connection for connections;
+                other keys are parsed as zones.
+            raw_map: Declarations grouped by key, with line numbers and values.
+
+        Returns:
+            Parsed entries in declaration order, or an empty list if the
+            key is absent.
+
+        Raises:
+            MapParserError: If an entry is invalid, with is source line number
+                included in the error message.
+        """
         entries: list[dict[str, str]] = []
 
         for line_number, value in raw_map.get(key, []):
@@ -195,6 +325,17 @@ class MapParser:
     def _validate_metadata_keys(self,
                                 attributes: dict[str, str],
                                 allowed_keys: set[str]) -> None:
+        """
+        Check that all metadata keys are supported.
+
+        Args:
+            attributes: Parsed metadata attributes.
+            allowed_keys: Metadata keys supported by the declaration.
+
+        Raises:
+            MapParserError: If attributes contains an unsupported
+                metadata key.
+        """
         invalid_keys = attributes.keys() - allowed_keys
         if invalid_keys:
             raise MapParserError(f"Invalid metadata fields: {invalid_keys}")
