@@ -68,11 +68,11 @@ class MapParser:
                 raise MapParserError(
                     f"Invalid map line {line_number}: empty value for '{key}'"
                 )
-            if not raw_map and key !="nb_drones":
+            if not raw_map and key != "nb_drones":
                 raise MapParserError(
                     f"Invalid map line {line_number}: "
                     "first declaration must be nb_drones"
-				)
+                )
             raw_map.setdefault(key, []).append((line_number, value))
         return raw_map
 
@@ -154,7 +154,7 @@ class MapParser:
         if "-" in zone_name:
             raise MapParserError(
                 f"Invalid zone name '{zone_name}': dashes are forbidden"
-			)
+            )
         config = {
             "name": zone_name,
             "x": x_coord,
