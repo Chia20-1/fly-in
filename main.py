@@ -24,7 +24,9 @@ def _get_file() -> str:
     return argv[1]
 
 
-def _get_raw_map(file_path: str) -> dict[str, object]:
+def _get_raw_map(
+        file_path: str,
+) -> tuple[dict[str, object], dict[str, list[int]]]:
     """
     Read and parse the map file.
 
@@ -40,13 +42,36 @@ def _get_raw_map(file_path: str) -> dict[str, object]:
     """
     try:
         parser = MapParser(file_path)
-        return parser.parse()
+        raw_map = parser.parse()
+        return raw_map, parser.line_numbers
     except (MapParserError, UnicodeDecodeError) as error:
         print(f"Error: {error}", file=stderr)
         exit(1)
 
 
-def _get_config(raw_map: dict[str, object]) -> MapConfig:
+def _get_error_line(
+        location: tuple[str | int, ...],
+        line_numbers: dict[str, list[int]],
+) -> int | None:
+    if not location:
+        return None
+
+    key = str(location[0])
+    index = 0
+
+    if len(location) > 1 and isinstance(location[1], int):
+        index = location[1]
+
+    lines = line_numbers.get(key, [])
+    if index < 0 or index >= len(lines):
+        return None
+    return lines[index]
+
+
+def _get_config(
+    raw_map: dict[str, object],
+    line_numbers: dict[str, list[int]],
+) -> MapConfig:
     """
     Convert raw map data into a configuration and validate its fields.
 
@@ -61,12 +86,13 @@ def _get_config(raw_map: dict[str, object]) -> MapConfig:
             to standard error.
     """
     try:
-        config = MapConfig.model_validate(raw_map)
-        return config
+        return MapConfig.model_validate(raw_map)
     except ValidationError as error:
         for detail in error.errors():
             field = " ".join(map(str, detail["loc"]))
-            print(f"Error: {field}: {detail['msg']}", file=stderr)
+            line = _get_error_line(detail["loc"], line_numbers)
+            prefix = f"Error on line {line}" if line is not None else "Error"
+            print(f"{prefix}: {field}: {detail['msg']}", file=stderr)
         exit(1)
 
 
@@ -92,7 +118,8 @@ def _validate_config(config: MapConfig) -> None:
 
 if __name__ == "__main__":
     file_path = _get_file()
-    raw_map = _get_raw_map(file_path)
-    config = _get_config(raw_map)
+    raw_map, line_numbers = _get_raw_map(file_path)
+    config = _get_config(raw_map, line_numbers)
     _validate_config(config)
     graph = Graph(config)
+    print(config)

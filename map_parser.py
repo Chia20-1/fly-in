@@ -21,6 +21,7 @@ class MapParser:
             file_path: Path to the map file
         """
         self.file_path = file_path
+        self.line_numbers: dict[str, list[int]] = {}
 
     def parse(self) -> dict[str, object]:
         """
@@ -37,6 +38,12 @@ class MapParser:
                 declaration structure is invalid.
         """
         raw_map = self._parse_raw()
+        for key, entries in raw_map.items():
+            line_numbers = []
+            for line_number, _ in entries:
+                line_numbers.append(line_number)
+            self.line_numbers[key] = line_numbers
+
         start = self._parse_entries("start_hub", raw_map)[0]
         end = self._parse_entries("end_hub", raw_map)[0]
 
