@@ -1,5 +1,5 @@
 # Easy Level 1: Simple linear path
-# nb_drones: 2
+nb_drones: 2
 
 start_hub: start 1 0
 hub: gate1 1 0

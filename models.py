@@ -105,6 +105,7 @@ class Graph:
         self.zones = self._init_zones()
         self.connections = self._init_connections()
         self.drones = self._init_drones()
+        self.adjacency = self._init_adjacency()
 
     def _init_drones(self) -> list[Drone]:
         """
