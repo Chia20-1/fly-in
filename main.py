@@ -122,4 +122,4 @@ if __name__ == "__main__":
     config = _get_config(raw_map, line_numbers)
     _validate_config(config)
     graph = Graph(config)
-    print(graph.__dict__)
+    print(graph.adjacency)
