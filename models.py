@@ -186,9 +186,9 @@ class Graph:
         }
         for connection in self.connections:
             adjacency[connection.from_zone].append(
-                (self.zones_by_name[connection.to_zone], connection)
+                (self.zone_lookup[connection.to_zone], connection)
             )
             adjacency[connection.to_zone].append(
-                (self.zones_by_name[connection.from_zone], connection)
+                (self.zone_lookup[connection.from_zone], connection)
             )
         return adjacency
