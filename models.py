@@ -105,6 +105,7 @@ class Graph:
         self.zones = self._init_zones()
         self.connections = self._init_connections()
         self.drones = self._init_drones()
+        self.zone_lookup = self._init_zone_lookup()
         self.adjacency = self._init_adjacency()
 
     def _init_drones(self) -> list[Drone]:
@@ -156,18 +157,38 @@ class Graph:
         ]
         return connections
 
-    def _init_adjacency(self) -> dict[str, list[Connection]]:
+    def _init_zone_lookup(self) -> dict[str, Zone]:
         """
-        Group connections by their endpoint zones.
+        Build a lookup table mapping zone names to existing Zone objects.
 
         Returns:
-            A mapping from each zone name to its incident connection.
+            A dictionary mapping each zone name to its Zone object in
+            self.zones.
         """
-        adjacency: dict[str, list[Connection]] = {
+        zones_by_name: dict[str, Zone] = {
+            zone.name: zone
+            for zone in self.zones
+        }
+        return zones_by_name
+
+    def _init_adjacency(self) -> dict[str, list[tuple[Zone, Connection]]]:
+        """
+        Build an adjacency lookup table for bidirectional connections.
+
+        Returns:
+            A dictionary mapping each zone name to a list of pairs containing
+            an adjacent Zone object and the Connection object leading to it.
+            Zones without connections map to empty lists.
+        """
+        adjacency: dict[str, list[tuple[Zone, Connection]]] = {
             zone.name: []
             for zone in self.zones
         }
         for connection in self.connections:
-            adjacency[connection.from_zone].append(connection)
-            adjacency[connection.to_zone].append(connection)
+            adjacency[connection.from_zone].append(
+                (self.zones_by_name[connection.to_zone], connection)
+            )
+            adjacency[connection.to_zone].append(
+                (self.zones_by_name[connection.from_zone], connection)
+            )
         return adjacency
