@@ -1,5 +1,5 @@
 from models import Graph, Zone, Connection
-
+import heapq
 
 class Router:
     """
@@ -49,5 +49,39 @@ class Router:
             return 2
         return 1
 
-    def find_route(self) -> list[tuple[Zone, Connection]]:
+    def _get_cost(self) -> dict[str, int]:
+        """
+        Compute and save shortest costs from the starting hub.
+        """
+        start_name = self.graph.start_hub.name
 
+        pending: list[tuple[int, str]] = [(0, start_name)]
+        cost: dict[str, int] = {start_name: 0}
+        previous: dict[str, tuple[str, Connection]] = {}
+
+        while pending:
+            current_cost, current_name = heapq.heappop(pending)
+
+            if current_cost > cost[current_name]:
+                continue
+
+            for neighbor, connection in self.graph.adjacency[current_name]:
+                movement_cost = self._movement_cost(neighbor)
+
+                if movement_cost is None:
+                    continue
+
+                neighbor_name = neighbor.name
+                new_cost = current_cost + movement_cost
+
+                if (
+                    neighbor_name not in cost
+                    or new_cost < cost[neighbor_name]
+                ):
+                    cost[neighbor_name] = new_cost
+                    previous[neighbor_name] = (current_name, connection)
+                    heapq.heappush(pending, (new_cost, neighbor_name))
+
+        self.cost = cost
+        self.previous = previous
+        return self.cost
