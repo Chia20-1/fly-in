@@ -1,6 +1,7 @@
 from models import Graph, Zone, Connection
 import heapq
 
+
 class Router:
     """
     Provide neighbor lookups and movement costs for a graph.

@@ -2,6 +2,7 @@ from map_parser import MapParser
 from map_config import MapConfig
 from map_validation import MapValidation
 from models import Graph
+from router import Router
 from pydantic import ValidationError
 from error import MapValidationError, MapParserError
 from sys import argv, stderr, exit
@@ -116,10 +117,20 @@ def _validate_config(config: MapConfig) -> None:
         exit(1)
 
 
+# def _print_costs(router: Router) -> None:
+#     costs = router._get_cost()
+
+#     for zone in graph.zones:
+#         if zone.name in costs:
+#             print(f"{zone.name}: {costs[zone.name]}")
+#         else:
+#             print(f"{zone.name}: unreachable")
+
+
 if __name__ == "__main__":
     file_path = _get_file()
     raw_map, line_numbers = _get_raw_map(file_path)
     config = _get_config(raw_map, line_numbers)
     _validate_config(config)
     graph = Graph(config)
-    print(graph.adjacency)
+    router = Router(graph)
