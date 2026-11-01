@@ -133,4 +133,9 @@ if __name__ == "__main__":
     config = _get_config(raw_map, line_numbers)
     _validate_config(config)
     graph = Graph(config)
-    router = Router(graph)
+    try:
+        router = Router(graph)
+        route = router.get_route(graph.end_hub.name)
+    except ValueError as e:
+        print(f"Error: {e}", file=stderr)
+        exit(1)
