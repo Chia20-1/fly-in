@@ -1,5 +1,9 @@
 from models import Graph, Zone, Connection
 import heapq
+from typing import TypeAlias
+
+
+Route: TypeAlias = list[tuple[Zone, Connection]]
 
 
 class Router:
@@ -118,7 +122,7 @@ class Router:
         self.previous = previous
         return self.cost
 
-    def get_route(self, dest: str) -> list[tuple[Zone, Connection]]:
+    def get_route(self, dest: str) -> Route:
         """
         Return a minimum-cost route from the starting hub to a destination.
 
@@ -143,9 +147,9 @@ class Router:
                              f"'{self.graph.start_hub.name}' to "
                              f"destination '{dest}'")
 
-        route: list[tuple[Zone, Connection]] = []
-        current_name = dest
-        start_name = self.graph.start_hub.name
+        route: Route = []
+        current_name: str = dest
+        start_name: str = self.graph.start_hub.name
 
         while current_name != start_name:
             previous_name, connection = self.previous[current_name]
