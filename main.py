@@ -2,7 +2,7 @@ from map_parser import MapParser
 from map_config import MapConfig
 from map_validation import MapValidation
 from models import Graph
-from router import Router
+from router import Route, Router
 from pydantic import ValidationError
 from error import MapValidationError, MapParserError
 from sys import argv, stderr, exit
@@ -126,6 +126,27 @@ def _validate_config(config: MapConfig) -> None:
 #         else:
 #             print(f"{zone.name}: unreachable")
 
+def _print_routes(
+        graph: Graph, 
+        router: Router,
+        best_route: Route,
+        all_routes: list[Route],
+    ) -> None:
+    destination = graph.end_hub.name
+    best_names = [graph.start_hub.name]
+    best_names.extend(zone.name for zone, _ in best_route)
+    print("Best route:", " -> ".join(best_names))
+    print("\nAlternate routes: ")
+    alternate_count = 0
+    for route in all_routes:
+        if route == best_route:
+            continue
+        alternate_count += 1
+        names = [graph.start_hub.name]
+        names.extend(zone.name for zone, _ in route)
+        print(f"{alternate_count}. {' -> '.join(names)}")
+    if alternate_count == 0:
+        print("No alternate routes.")
 
 if __name__ == "__main__":
     file_path = _get_file()
@@ -137,6 +158,7 @@ if __name__ == "__main__":
         router = Router(graph)
         best_route = router.get_best_route(graph.end_hub.name)
         alter_routes = router.get_routes(graph.end_hub.name)
+        _print_routes(graph, router, best_route, alter_routes)
     except ValueError as e:
         print(f"Error: {e}", file=stderr)
         exit(1)
