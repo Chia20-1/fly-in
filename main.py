@@ -135,7 +135,8 @@ if __name__ == "__main__":
     graph = Graph(config)
     try:
         router = Router(graph)
-        route = router.get_route(graph.end_hub.name)
+        best_route = router.get_best_route(graph.end_hub.name)
+        alter_routes = router.get_routes(graph.end_hub.name)
     except ValueError as e:
         print(f"Error: {e}", file=stderr)
         exit(1)

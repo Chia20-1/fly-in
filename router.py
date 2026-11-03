@@ -122,7 +122,87 @@ class Router:
         self.previous = previous
         return self.cost
 
-    def get_route(self, dest: str) -> Route:
+    def _available_steps(
+        self,
+        current: str,
+        visited: set[str],
+    ) -> Route:
+        """
+        Return unvisited, traversable steps from the current zone.
+
+        Args:
+            current: Name of the zone whose connections to examine.
+            visited: Names of zones to exclude from the available steps.
+
+        Returns:
+            A list of pairs containing an adjacent zone and the connection
+            used to enter it. Visited and blocked zones are excluded.
+            The list is empty if no eligible steps exist.
+
+        Raises:
+            KeyError: If current is absent from the graph's adjacency lookup.
+        """
+        steps: Route = []
+        for destination, connection in self.graph.adjacency[current]:
+            if destination.name in visited:
+                continue
+            if self._movement_cost(destination) is None:
+                continue
+            steps.append((destination, connection))
+        return steps
+
+    def _explore_routes(
+        self,
+        current: str,
+        dest: str,
+        visited: set[str],
+    ) -> list[Route]:
+        """
+        Find all traversable routes from the current zone to a destination.
+
+        Explore routes using depth-first search, excluding blocked zones and
+        zones already visited on each path. Leave the supplied visited set
+        unchanged.
+
+        Args:
+            current: Name of the zone from which to explore routes.
+            dest: Name of the destination zone.
+            visited: Names of zones already visited on the path. Include
+                current to prevent routes from returning to the initial zone.
+
+        Returns:
+            A list of routes, each containing pairs of zones to enter and
+            connections to use, in travel order. The initial zone is excluded.
+            Return an empty list if no route exists, or a list containing one
+            empty route if current equals dest. Routes are not sorted by cost.
+
+        Raises:
+            KeyError: If a zone being explored is absent from the graph's
+                adjacency lookup.
+        """
+        path: Route = []
+        routes: list[Route] = []
+        pending: list[tuple[str, Route, set[str]]] = [
+            (current, path, visited)
+        ]
+        while pending:
+            current, path, visited = pending.pop()
+
+            if current == dest:
+                routes.append(path)
+                continue
+
+            for destination, connection in self._available_steps(
+                current, visited
+            ):
+                next_path: Route = path + [(destination, connection)]
+                next_visited: set[str] = visited | {destination.name}
+                pending.append(
+                    (destination.name, next_path, next_visited)
+                )
+        return routes
+
+    def get_best_route(self, dest: str) -> Route:
         """
         Return a minimum-cost route from the starting hub to a destination.
 
@@ -160,3 +240,31 @@ class Router:
 
         route.reverse()
         return route
+
+    def get_routes(self, dest:str) -> list[Route]:
+        """
+        Return all traversable routes from the starting hub to a destination.
+
+        Exclude blocked zones and routes that revisit a zone. Routes are not
+        sorted by movement cost or priority-zone count.
+
+        Args:
+            dest: Name of the destination zone.
+
+        Returns:
+            A list of routes, each containing pairs of zones to enter and
+            connections to use, in travel order. The starting hub is excluded.
+            Return a list containing one empty route if dest is the starting
+            hub.
+
+        Raises:
+            ValueError: If the destination is unknown or unreachable.
+        """
+        if dest not in self.graph.zone_lookup:
+            raise ValueError(f"Unknow destination '{dest}'")
+        start: str = self.graph.start_hub.name
+        visited: set[str] = {start}
+        routes = self._explore_routes(start, dest, visited)
+        if not routes:
+            raise ValueError(f"No valid path from '{start}' to '{dest}'")
+        return routes
