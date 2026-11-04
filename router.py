@@ -8,10 +8,17 @@ Route: TypeAlias = list[tuple[Zone, Connection]]
 
 class Router:
     """
-    Provide neighbor lookups and movement costs for a graph.
+    Find minimum-cost routes through a graph using Dijkstra's algorithm.
+
+    Search records are created after a search with valid endpoint names
+    and describe the latest search, including its chosen starting zone.
 
     Attributes:
         graph: Graph used to look up neighboring zones.
+        cost: Minimum movement cost to each reachable zone in the latest search.
+        priority_count: Number of priority zones on each selected route.
+        previous: Predecessor name and connection for each reached zone
+            other than the search's starting zone.
     """
     def __init__(self, graph: Graph) -> None:
         """
@@ -23,8 +30,7 @@ class Router:
         self.graph = graph
 
     def _find_neighbor(self, zone: str) -> list[Zone]:
-        """
-        Return the zones adjacent to the named zone.
+        """Return the zones adjacent to the named zone.
 
         Args:
             zone: Name of the zone whose neighbors to retrieve.
@@ -32,6 +38,9 @@ class Router:
         Returns:
             A list of adjacent Zone objects, including any blocked zones.
             An empty list if the zone has no connections.
+
+        Raises:
+            KeyError: If zone is absent from the graph's adjacency lookup.
         """
         neighbors: list[Zone] = []
         for neighbor, _ in self.graph.adjacency[zone]:
@@ -54,43 +63,58 @@ class Router:
             return 2
         return 1
 
-    def _get_cost(self) -> dict[str, int]:
+    def _find_route(
+        self,
+        start: str,
+        dest: str,
+        excluded_connection: Connection | None = None,
+    ) -> Route | None:
         """
-        Compute shortest movement costs from the starting hub using Dijkstra.
-        Among equal-cost paths, prefer paths that enter more priority zones.
+        Find a minimum-cost route between two zones.
 
-        Pending stores zones waiting to be explored. Cost stores the lowest
-        cost found to reach each zone. Priority count tracks how many priority
-        zones are on each chosen path. Previous stores where we came from and
-        which connection we used, so we can rebuild the final route.
+        Prefer more priority zones when costs tie. Skip blocked destinations
+        and the excluded connection in both directions. Replace the stored
+        cost, priority_count, and previous records with this search's results.
+
+        Args:
+            start: Name of the zone from which to search.
+            dest: Name of the destination zone.
+            excluded_connection: Existing graph connection to skip.
+             If None, exclude no connection.
 
         Returns:
-            A dictionary mapping reachable zone names to minimum total
-            movement costs in turns. The starting hub has cost zero;
-            unreachable and blocked zones are omitted.
-        """
-        start_name = self.graph.start_hub.name
+            Destination-zone and connection pairs in travel order, excluding
+            the starting zone. Return an empty list if start equals dest,
+            or None if no route exists.
 
-        pending: list[tuple[int, int, str]] = [(0, 0, start_name)]
-        cost: dict[str, int] = {start_name: 0}
-        priority_count: dict[str, int] = {start_name: 0}
+        Raises:
+            ValueError: If start or dest is unknown.
+        """
+        for name in (start, dest):
+            if name not in self.graph.zone_lookup:
+                raise ValueError(f"Unknown zone '{name}'")
+
+        pending: list[tuple[int, int, str]] = [(0, 0, start)]
+        cost: dict[str, int] = {start: 0}
+        priority_count: dict[str, int] = {start: 0}
         previous: dict[str, tuple[str, Connection]] = {}
 
-        # heappop always choose lowest cost first
         while pending:
             current_cost, priority, current_name = heapq.heappop(pending)
             current_priority = -priority
 
-            # Reject outdated entries
+            # Ignore entries replaced by a better route.
             if (
-                current_cost > cost[current_name]
+                current_cost != cost[current_name]
                 or current_priority != priority_count[current_name]
             ):
                 continue
 
             for destination, connection in self.graph.adjacency[current_name]:
-                movement_cost = self._movement_cost(destination)
+                if connection is excluded_connection:
+                    continue
 
+                movement_cost = self._movement_cost(destination)
                 if movement_cost is None:
                     continue
 
@@ -112,159 +136,85 @@ class Router:
                     cost[destination_name] = new_cost
                     priority_count[destination_name] = new_priority
                     previous[destination_name] = (current_name, connection)
+
                     heapq.heappush(
                         pending,
                         (new_cost, -new_priority, destination_name),
                     )
 
+        # Keep the latest search records available for inspection.
         self.cost = cost
         self.priority_count = priority_count
         self.previous = previous
-        return self.cost
 
-    def _available_steps(
-        self,
-        current: str,
-        visited: set[str],
-    ) -> Route:
-        """
-        Return unvisited, traversable steps from the current zone.
+        if dest not in cost:
+            return None
 
-        Args:
-            current: Name of the zone whose connections to examine.
-            visited: Names of zones to exclude from the available steps.
-
-        Returns:
-            A list of pairs containing an adjacent zone and the connection
-            used to enter it. Visited and blocked zones are excluded.
-            The list is empty if no eligible steps exist.
-
-        Raises:
-            KeyError: If current is absent from the graph's adjacency lookup.
-        """
-        steps: Route = []
-        for destination, connection in self.graph.adjacency[current]:
-            if destination.name in visited:
-                continue
-            if self._movement_cost(destination) is None:
-                continue
-            steps.append((destination, connection))
-        return steps
-
-    def _explore_routes(
-        self,
-        current: str,
-        dest: str,
-        visited: set[str],
-    ) -> list[Route]:
-        """
-        Find all traversable routes from the current zone to a destination.
-
-        Explore routes using depth-first search, excluding blocked zones and
-        zones already visited on each path. Leave the supplied visited set
-        unchanged.
-
-        Args:
-            current: Name of the zone from which to explore routes.
-            dest: Name of the destination zone.
-            visited: Names of zones already visited on the path. Include
-                current to prevent routes from returning to the initial zone.
-
-        Returns:
-            A list of routes, each containing pairs of zones to enter and
-            connections to use, in travel order. The initial zone is excluded.
-            Return an empty list if no route exists, or a list containing one
-            empty route if current equals dest. Routes are not sorted by cost.
-
-        Raises:
-            KeyError: If a zone being explored is absent from the graph's
-                adjacency lookup.
-        """
-        path: Route = []
-        routes: list[Route] = []
-        pending: list[tuple[str, Route, set[str]]] = [
-            (current, path, visited)
-        ]
-        while pending:
-            current, path, visited = pending.pop()
-
-            if current == dest:
-                routes.append(path)
-                continue
-
-            for destination, connection in self._available_steps(
-                current, visited
-            ):
-                next_path: Route = path + [(destination, connection)]
-                next_visited: set[str] = visited | {destination.name}
-                pending.append(
-                    (destination.name, next_path, next_visited)
-                )
-        return routes
-
-    def get_best_route(self, dest: str) -> Route:
-        """
-        Return a minimum-cost route from the starting hub to a destination.
-
-        Prefer routes with more priority zones when movement costs are equal.
-        Recompute routing records before reconstructing the chosen route.
-
-        Args:
-            dest: Name of the destination zone.
-
-        Returns:
-            A list of steps in travel order, each containing the zone to enter
-            and the connection used to enter it. The starting hub is excluded.
-            Return an empty list if the destination is the starting hub.
-
-        Raises:
-            ValueError: If the destination is unknown or unreachable.
-        """
-        self._get_cost()
-
-        if dest not in self.cost:
-            raise ValueError("No valid path from start hub "
-                             f"'{self.graph.start_hub.name}' to "
-                             f"destination '{dest}'")
-
+        # Follow predecessors backward, then reverse the route.
         route: Route = []
-        current_name: str = dest
-        start_name: str = self.graph.start_hub.name
+        current_name = dest
 
-        while current_name != start_name:
-            previous_name, connection = self.previous[current_name]
+        while current_name != start:
+            previous_name, connection = previous[current_name]
             current_zone = self.graph.zone_lookup[current_name]
-
             route.append((current_zone, connection))
             current_name = previous_name
 
         route.reverse()
         return route
 
-    def get_routes(self, dest:str) -> list[Route]:
+    def get_best_route(self, dest: str) -> Route:
         """
-        Return all traversable routes from the starting hub to a destination.
+        Return a minimum-cost route from the start hub.
 
-        Exclude blocked zones and routes that revisit a zone. Routes are not
-        sorted by movement cost or priority-zone count.
+        Prefer more priority zones when costs tie.
 
         Args:
             dest: Name of the destination zone.
 
         Returns:
-            A list of routes, each containing pairs of zones to enter and
-            connections to use, in travel order. The starting hub is excluded.
-            Return a list containing one empty route if dest is the starting
-            hub.
+            Destination-zone and connection pairs in travel order, excluding
+            the start hub. Return an empty list if dest is the start hub.
 
         Raises:
             ValueError: If the destination is unknown or unreachable.
         """
-        if dest not in self.graph.zone_lookup:
-            raise ValueError(f"Unknow destination '{dest}'")
-        start: str = self.graph.start_hub.name
-        visited: set[str] = {start}
-        routes = self._explore_routes(start, dest, visited)
-        if not routes:
-            raise ValueError(f"No valid path from '{start}' to '{dest}'")
-        return routes
+        start = self.graph.start_hub.name
+        route = self._find_route(start, dest)
+
+        if route is None:
+            raise ValueError(
+                f"No valid path from '{start}' to '{dest}'"
+            )
+
+        return route
+
+    def get_alternate_route(
+        self,
+        current_zone: Zone,
+        unavailable_connection: Connection,
+    ) -> Route | None:
+        """
+        Find an alternative from the current zone to the end hub.
+
+        Avoid the supplied connection and prefer more priority zones when
+        costs tie. Do not move the drone or check live capacity.
+
+        Args:
+            current_zone: Zone from which to search.
+            unavailable_connection: Existing graph connection to exclude
+                in both directions, matched by object identity.
+
+        Returns:
+            Minimum-cost route as destination-zone and connection pairs,
+            excluding current_zone. Return an empty list if already at the
+            end hub, or None if no alternative exists.
+
+        Raises:
+            ValueError: If the current zone or end hub name is unknown.
+        """
+        return self._find_route(
+            current_zone.name,
+            self.graph.end_hub.name,
+            excluded_connection=unavailable_connection,
+        )
