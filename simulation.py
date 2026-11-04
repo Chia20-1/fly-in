@@ -2,6 +2,11 @@ from models import Connection, Drone, Graph, Zone
 from router import Route, Router
 
 
+Movement = tuple[int, str]
+Turn = list[Movement]
+SimulationOutput = list[Turn]
+
+
 class Simulation:
     """
     """
@@ -20,6 +25,7 @@ class Simulation:
         self.next_step: dict[int, int] = {}
         self.occupancy: dict[Zone, int] = {}
         self.in_transit: dict[int, tuple[Zone, Connection]] = {}
+        self.output: SimulationOutput = []
 
     def _init_simulation(self) -> None:
         """
@@ -94,6 +100,7 @@ class Simulation:
 
     def _update_simulation(self) -> None:
         link_usage: dict[Connection, int] = {}
+        turn_movement: Turn = []
 
         # Counts occupied slots AND slots reserved by incoming drones.
         planned_occupancy = self.occupancy.copy()
@@ -164,20 +171,31 @@ class Simulation:
                 destination, _ = self.in_transit.pop(drone.id)
                 drone.current_zone = destination
                 self.next_step[drone.id] += 1
+                turn_movement.append((drone.id, destination.name))
 
         # Run approved movements.
         for drone, destination, connection in departures:
             if destination.zone == "restricted":
                 self.in_transit[drone.id] = (destination, connection)
+                connection_name = (
+                    f"{connection.from_zone}-{connection.to_zone}"
+                )
+                turn_movement.append((drone.id, connection_name))
             else:
                 drone.current_zone = destination
                 self.next_step[drone.id] += 1
+                turn_movement.append((drone.id, destination.name))
 
         self.occupancy = planned_occupancy
+        self.output.append(turn_movement)
 
-    def run_simulation(self) -> int:
-        """
-        Run until every drone finishes and return the turn count.
+    def run_simulation(self) -> tuple[SimulationOutput, int]:
+        """Run the simulation until every drone reaches the end hub.
+
+        Returns:
+            A tuple containing the movement history grouped by turn and the
+            total number of simulation turns. Each movement contains a drone
+            ID and a destination zone or transit connection name.
         """
         self._init_simulation()
         turns = 0
@@ -189,4 +207,4 @@ class Simulation:
             self._update_simulation()
             turns += 1
 
-        return turns
+        return self.output, turns

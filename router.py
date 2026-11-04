@@ -1,9 +1,8 @@
 from models import Graph, Zone, Connection
 import heapq
-from typing import TypeAlias
 
 
-Route: TypeAlias = list[tuple[Zone, Connection]]
+Route = list[tuple[Zone, Connection]]
 
 
 class Router:
