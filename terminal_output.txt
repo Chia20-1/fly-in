@@ -1,6 +1,0 @@
-{
-    'start': [<models.Connection object at 0x7fb8bb9dfa10>],
-    'goal': [<models.Connection object at 0x7fb8bb816350>],
-    'waypoint1': [<models.Connection object at 0x7fb8bb9dfa10>, <models.Connection object at 0x7fb8bb816490>],
-    'waypoint2': [<models.Connection object at 0x7fb8bb816490>, <models.Connection object at 0x7fb8bb816350>]
-}
