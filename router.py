@@ -15,7 +15,7 @@ class Router:
 
     Attributes:
         graph: Graph used to look up neighboring zones.
-        cost: Minimum movement cost to each reachable zone in the latest search.
+        cost: Minimum movement cost to each reachable zone.
         priority_count: Number of priority zones on each selected route.
         previous: Predecessor name and connection for each reached zone
             other than the search's starting zone.

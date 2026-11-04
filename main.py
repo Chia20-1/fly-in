@@ -2,7 +2,7 @@ from map_parser import MapParser
 from map_config import MapConfig
 from map_validation import MapValidation
 from models import Graph
-from router import Route, Router
+from router import Router
 from simulation import Simulation
 from pydantic import ValidationError
 from error import MapValidationError, MapParserError

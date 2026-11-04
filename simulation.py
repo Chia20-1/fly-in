@@ -103,7 +103,7 @@ class Simulation:
         # Their departures can free space for drones behind them.
         ordered_drones = sorted(
             self.graph.drones,
-            key=lambda drone: 
+            key=lambda drone:
             (
                 len(self.routes[drone.id]) - self.next_step[drone.id],
                 drone.id,
@@ -144,7 +144,7 @@ class Simulation:
 
                 if alternative is None:
                     continue
-                
+
                 # Replace the route
                 self.routes[drone.id] = alternative
                 self.next_step[drone.id] = 0
@@ -164,7 +164,7 @@ class Simulation:
                 destination, _ = self.in_transit.pop(drone.id)
                 drone.current_zone = destination
                 self.next_step[drone.id] += 1
-        
+
         # Run approved movements.
         for drone, destination, connection in departures:
             if destination.zone == "restricted":
@@ -172,7 +172,7 @@ class Simulation:
             else:
                 drone.current_zone = destination
                 self.next_step[drone.id] += 1
-        
+
         self.occupancy = planned_occupancy
 
     def run_simulation(self) -> int:
