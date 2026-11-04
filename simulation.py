@@ -103,55 +103,59 @@ class Simulation:
         # Their departures can free space for drones behind them.
         ordered_drones = sorted(
             self.graph.drones,
-            key=lambda drone: self.next_step[drone.id],
-            reverse=True,
+            key=lambda drone: 
+            (
+                len(self.routes[drone.id]) - self.next_step[drone.id],
+                drone.id,
+            ),
         )
 
         for drone in ordered_drones:
+            route = self.routes[drone.id]
             index = self.next_step[drone.id]
 
             # Safeguard of invalid movement
-            assert 0 <= index <= self.end, "Route index is out of bounds"
+            assert 0 <= index <= len(route), "Route index is out of bounds"
 
             # 1. Has the drone finished its route?
-            if index == self.end:
+            if drone.current_zone is self.graph.end_hub:
                 continue
 
             # 2. Has the restricted movement complete?
-            # These drones will arrive this turn.
-            # They cannot also start another movement.
             if drone.id in self.in_transit:
                 continue
 
-            destination, connection = self.route[index]
+            assert index < len(route), "Route ended before the end hub"
 
-            # 3. Is the destination blocked?
-            if destination.zone == "blocked":
-                continue
+            destination, connection = route[index]
 
-            # 4. Is the destination full?
-            unlimited_capacity = (
-                destination is self.graph.start_hub
-                or destination is self.graph.end_hub
-            )
-
-            if (
-                not unlimited_capacity
-                and planned_occupancy[destination] >= destination.max_drones
+            if not self._can_move(
+                destination,
+                connection,
+                planned_occupancy,
+                link_usage,
             ):
-                continue
+                alternative = self._find_usable_alternative(
+                    drone,
+                    connection,
+                    planned_occupancy,
+                    link_usage,
+                )
 
-            # 5. Is the connection full?
-            used = link_usage.get(connection, 0)
-            if used >= connection.max_link_capacity:
-                continue
+                if alternative is None:
+                    continue
+                
+                # Replace the route
+                self.routes[drone.id] = alternative
+                self.next_step[drone.id] = 0
+                destination, connection = alternative[0]
 
             # 6. Movement operation
             # Move from source to destination
             # Destination zone is reserved for restricted movement
             planned_occupancy[drone.current_zone] -= 1
             planned_occupancy[destination] += 1
-            link_usage[connection] = used + 1
+            link_usage[connection] = link_usage.get(connection, 0) + 1
             departures.append((drone, destination, connection))
 
         # Complete restricted movements from last turn
@@ -179,8 +183,8 @@ class Simulation:
         turns = 0
 
         while any(
-            index < self.end
-            for index in self.next_step.values()
+            drone.current_zone is not self.graph.end_hub
+            for drone in self.graph.drones
         ):
             self._update_simulation()
             turns += 1
