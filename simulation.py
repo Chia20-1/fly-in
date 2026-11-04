@@ -1,16 +1,22 @@
 from models import Connection, Drone, Graph, Zone
-from router import Route
+from router import Route, Router
 
 
 class Simulation:
     """
     """
-    def __init__(self, graph: Graph, route: Route) -> None:
+    def __init__(self, graph: Graph, router: Router) -> None:
         """
         """
         self.graph = graph
-        self.route = route
-        self.end: int = len(self.route)
+        self.router = router
+
+        initial_route = router.get_best_route(graph.end_hub.name)
+
+        self.routes: dict[int, Route] = {
+            drone.id: initial_route.copy()
+            for drone in graph.drones
+        }
         self.next_step: dict[int, int] = {}
         self.occupancy: dict[Zone, int] = {}
         self.in_transit: dict[int, tuple[Zone, Connection]] = {}
@@ -25,6 +31,66 @@ class Simulation:
             self.occupancy[zone] = 0
             if zone == self.graph.start_hub:
                 self.occupancy[zone] = len(self.graph.drones)
+
+    def _can_move(
+        self,
+        destination: Zone,
+        connection: Connection,
+        planned_occupancy: dict[Zone, int],
+        link_usage: dict[Connection, int],
+    ) -> bool:
+        """
+        """
+        if destination.zone == "blocked":
+            return False
+
+        unlimited_capacity = (
+            destination is self.graph.start_hub
+            or destination is self.graph.end_hub
+        )
+
+        if (
+            not unlimited_capacity
+            and planned_occupancy[destination] >= destination.max_drones
+        ):
+            return False
+
+        used = link_usage.get(connection, 0)
+        return used < connection.max_link_capacity
+
+    def _find_usable_alternative(
+        self,
+        drone: Drone,
+        unavailable_connection: Connection,
+        planned_occupancy: dict[Zone, int],
+        link_usage: dict[Connection, int],
+    ) -> Route | None:
+        """
+        Return an alternative whose first movement can be approved.
+        """
+        alternative = self.router.get_alternate_route(
+            drone.current_zone,
+            unavailable_connection,
+        )
+
+        if alternative is None:
+            return None
+
+        # A delivered drone has no next movement to propose.
+        if not alternative:
+            return None
+
+        destination, connection = alternative[0]
+
+        if not self._can_move(
+            destination,
+            connection,
+            planned_occupancy,
+            link_usage,
+        ):
+            return None
+
+        return alternative
 
     def _update_simulation(self) -> None:
         link_usage: dict[Connection, int] = {}
