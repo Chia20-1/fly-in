@@ -28,9 +28,13 @@ class Simulation:
 
     def _update_simulation(self) -> None:
         link_usage: dict[Connection, int] = {}
-        planned_occupancy = self.occupancy.copy()
-        departures: list[tuple[Drone, Zone, Donnction]] = []
 
+        # Counts occupied slots AND slots reserved by incoming drones.
+        planned_occupancy = self.occupancy.copy()
+        departures: list[tuple[Drone, Zone, Connection]] = []
+
+        # On a shared route, plan drones nearer the end first.
+        # Their departures can free space for drones behind them.
         ordered_drones = sorted(
             self.graph.drones,
             key=lambda drone: self.next_step[drone.id],
@@ -41,13 +45,15 @@ class Simulation:
             index = self.next_step[drone.id]
 
             # Safeguard of invalid movement
-            assert 0 <= index <=self.end, "Route index is out of bounds"
+            assert 0 <= index <= self.end, "Route index is out of bounds"
 
             # 1. Has the drone finished its route?
             if index == self.end:
                 continue
 
             # 2. Has the restricted movement complete?
+            # These drones will arrive this turn.
+            # They cannot also start another movement.
             if drone.id in self.in_transit:
                 continue
 
@@ -58,14 +64,14 @@ class Simulation:
                 continue
 
             # 4. Is the destination full?
-            is_ignored_zone = (
+            unlimited_capacity = (
                 destination is self.graph.start_hub
                 or destination is self.graph.end_hub
             )
 
             if (
-                not is_ignored_zone
-                and self.occupancy[destination] >= destination.max_drones
+                not unlimited_capacity
+                and planned_occupancy[destination] >= destination.max_drones
             ):
                 continue
 
@@ -75,13 +81,15 @@ class Simulation:
                 continue
 
             # 6. Movement operation
+            # Move from source to destination
+            # Destination zone is reserved for restricted movement
             planned_occupancy[drone.current_zone] -= 1
             planned_occupancy[destination] += 1
-            link_usage[conection] = used + 1
+            link_usage[connection] = used + 1
             departures.append((drone, destination, connection))
 
         # Complete restricted movements from last turn
-        for drones in self.graph.drones:
+        for drone in self.graph.drones:
             if drone.id in self.in_transit:
                 destination, _ = self.in_transit.pop(drone.id)
                 drone.current_zone = destination
@@ -96,3 +104,19 @@ class Simulation:
                 self.next_step[drone.id] += 1
         
         self.occupancy = planned_occupancy
+
+    def run_simulation(self) -> int:
+        """
+        Run until every drone finishes and return the turn count.
+        """
+        self._init_simulation()
+        turns = 0
+
+        while any(
+            index < self.end
+            for index in self.next_step.values()
+        ):
+            self._update_simulation()
+            turns += 1
+
+        return turns
