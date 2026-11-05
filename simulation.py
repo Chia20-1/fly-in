@@ -1,10 +1,101 @@
 from models import Connection, Drone, Graph, Zone
 from router import Route, Router
 
-
+# Each entry: arrival turn, destination, connection used
+Plan = list[tuple[int, Zone, Connection]]
 Movement = tuple[int, str]
 Turn = list[Movement]
 SimulationOutput = list[Turn]
+
+
+class Scheduler:
+    """
+    """
+    def __init__(self, graph: Graph) -> None:
+        """
+        """
+        self.graph: Graph = graph
+        self.output: SimulationOutput = []
+        self.zone_use: dict[tuple[int, Zone], int] = {}
+        self.link_use: dict[tuple[int, Connection], int] = {}
+
+    def _make_plan(self, route: Route, delay: int) -> Plan:
+        """
+        """
+        turn = delay
+        plan: Plan = []
+
+        for destination, connection in route:
+            if destination.zone == "blocked":
+                raise ValueError("A route cannot enter a blocked zone")
+
+            turn += 2 if destination.zone == "restricted" else 1
+            plan.append((turn, destination, connection))
+        return plan
+
+    def _has_capacity_for_plan(self, plan: Plan) -> bool:
+        """
+        """
+        for arrival, destination, connection in plan:
+            crossing = arrival
+            if destination.zone == "restricted":
+                crossing = arrival - 1
+
+            has_unlimited_zone_capacity = (
+                destination is self.graph.start_hub
+                or destination is self.graph.end_hub
+            )
+
+            if not has_unlimited_zone_capacity:
+                occupied = self.zone_use.get((arrival, destination), 0)
+                if occupied >= destination.max_drones:
+                    return False
+
+            used = self.link_use.get((crossing, connection), 0)
+            if used >= connection.max_link_capacity:
+                return False
+
+        return True
+
+    def schedule_drone(self, drone: Drone, route: Route) -> None:
+        """
+        """
+        departure_delay = 0
+        plan = self._make_plan(route, departure_delay)
+
+        while not self._has_capacity_for_plan(plan):
+            departure_delay += 1
+            plan = self._make_plan(route, departure_delay)
+
+        for arrival_turn, destination, connection in plan:
+            crossing_turn = arrival_turn
+
+            if destination.zone == "restricted":
+                crossing_turn = arrival_turn - 1
+
+            # Reserve zone capacity for arrival turn
+            zone_key = (arrival_turn, destination)
+            self.zone_use[zone_key] = self.zone_use.get(zone_key, 0) + 1
+
+            # Reserve connection capacity on the crossing turn
+            link_key = (crossing_turn, connection)
+            self.link_use[link_key] = self.link_use.get(link_key, 0) + 1
+
+            # Create output entries up to the arrival turn
+            while len(self.output) < arrival_turn:
+                self.output.append([])
+
+            if destination.zone == "restricted":
+                connection_name = (
+                    f"{connection.from_zone}-{connection.to_zone}"
+                )
+                self.output[crossing_turn - 1].append(
+                    (drone.id, connection_name)
+                )
+
+            self.output[arrival_turn - 1].append(
+                (drone.id, destination.name)
+            )
 
 
 class Simulation:
@@ -15,196 +106,68 @@ class Simulation:
         """
         self.graph = graph
         self.router = router
-
-        initial_route = router.get_best_route(graph.end_hub.name)
-
-        self.routes: dict[int, Route] = {
-            drone.id: initial_route.copy()
-            for drone in graph.drones
+        self._drones_by_id: dict[int, Drone] = {
+            drone.id: drone for drone in graph.drones
         }
-        self.next_step: dict[int, int] = {}
         self.occupancy: dict[Zone, int] = {}
-        self.in_transit: dict[int, tuple[Zone, Connection]] = {}
+        self.in_transit: dict[int, str] = {}
         self.output: SimulationOutput = []
 
     def _init_simulation(self) -> None:
         """
         """
+        self.output = []
+        self.in_transit.clear()
+
         for drone in self.graph.drones:
-            self.next_step[drone.id] = 0
+            drone.current_zone = self.graph.start_hub
 
-        for zone in self.graph.zones:
-            self.occupancy[zone] = 0
-            if zone == self.graph.start_hub:
-                self.occupancy[zone] = len(self.graph.drones)
+        self._update_occupancy()
 
-    def _can_move(
-        self,
-        destination: Zone,
-        connection: Connection,
-        planned_occupancy: dict[Zone, int],
-        link_usage: dict[Connection, int],
-    ) -> bool:
+    def _build_schedule(self) -> SimulationOutput:
         """
         """
-        if destination.zone == "blocked":
-            return False
+        scheduler = Scheduler(self.graph)
+        route = self.router.get_best_route(self.graph.end_hub.name)
 
-        unlimited_capacity = (
-            destination is self.graph.start_hub
-            or destination is self.graph.end_hub
-        )
-
-        if (
-            not unlimited_capacity
-            and planned_occupancy[destination] >= destination.max_drones
-        ):
-            return False
-
-        used = link_usage.get(connection, 0)
-        return used < connection.max_link_capacity
-
-    def _find_usable_alternative(
-        self,
-        drone: Drone,
-        unavailable_connection: Connection,
-        planned_occupancy: dict[Zone, int],
-        link_usage: dict[Connection, int],
-    ) -> Route | None:
-        """
-        Return an alternative whose first movement can be approved.
-        """
-        alternative = self.router.get_alternate_route(
-            drone.current_zone,
-            unavailable_connection,
-        )
-
-        if alternative is None:
-            return None
-
-        # A delivered drone has no next movement to propose.
-        if not alternative:
-            return None
-
-        destination, connection = alternative[0]
-
-        if not self._can_move(
-            destination,
-            connection,
-            planned_occupancy,
-            link_usage,
-        ):
-            return None
-
-        return alternative
-
-    def _update_simulation(self) -> None:
-        link_usage: dict[Connection, int] = {}
-        turn_movement: Turn = []
-
-        # Counts occupied slots AND slots reserved by incoming drones.
-        planned_occupancy = self.occupancy.copy()
-        departures: list[tuple[Drone, Zone, Connection]] = []
-
-        # On a shared route, plan drones nearer the end first.
-        # Their departures can free space for drones behind them.
-        ordered_drones = sorted(
-            self.graph.drones,
-            key=lambda drone:
-            (
-                len(self.routes[drone.id]) - self.next_step[drone.id],
-                drone.id,
-            ),
-        )
-
-        for drone in ordered_drones:
-            route = self.routes[drone.id]
-            index = self.next_step[drone.id]
-
-            # Safeguard of invalid movement
-            assert 0 <= index <= len(route), "Route index is out of bounds"
-
-            # 1. Has the drone finished its route?
-            if drone.current_zone is self.graph.end_hub:
-                continue
-
-            # 2. Has the restricted movement complete?
-            if drone.id in self.in_transit:
-                continue
-
-            assert index < len(route), "Route ended before the end hub"
-
-            destination, connection = route[index]
-
-            if not self._can_move(
-                destination,
-                connection,
-                planned_occupancy,
-                link_usage,
-            ):
-                alternative = self._find_usable_alternative(
-                    drone,
-                    connection,
-                    planned_occupancy,
-                    link_usage,
-                )
-
-                if alternative is None:
-                    continue
-
-                # Replace the route
-                self.routes[drone.id] = alternative
-                self.next_step[drone.id] = 0
-                destination, connection = alternative[0]
-
-            # 6. Movement operation
-            # Move from source to destination
-            # Destination zone is reserved for restricted movement
-            planned_occupancy[drone.current_zone] -= 1
-            planned_occupancy[destination] += 1
-            link_usage[connection] = link_usage.get(connection, 0) + 1
-            departures.append((drone, destination, connection))
-
-        # Complete restricted movements from last turn
         for drone in self.graph.drones:
-            if drone.id in self.in_transit:
-                destination, _ = self.in_transit.pop(drone.id)
-                drone.current_zone = destination
-                self.next_step[drone.id] += 1
-                turn_movement.append((drone.id, destination.name))
+            scheduler.schedule_drone(drone, route)
 
-        # Run approved movements.
-        for drone, destination, connection in departures:
-            if destination.zone == "restricted":
-                self.in_transit[drone.id] = (destination, connection)
-                connection_name = (
-                    f"{connection.from_zone}-{connection.to_zone}"
-                )
-                turn_movement.append((drone.id, connection_name))
+        return scheduler.output
+
+    def _apply_turn(self, turn: Turn) -> None:
+        """
+        """
+        for drone_id, location in turn:
+            drone = self._drones_by_id[drone_id]
+            destination = self.graph.zone_lookup.get(location)
+
+            if destination is None:
+                self.in_transit[drone_id] = location
             else:
                 drone.current_zone = destination
-                self.next_step[drone.id] += 1
-                turn_movement.append((drone.id, destination.name))
+                self.in_transit.pop(drone_id, None)
 
-        self.occupancy = planned_occupancy
-        self.output.append(turn_movement)
+        self._update_occupancy()
+
+    def _update_occupancy(self) -> None:
+        """
+        """
+        self.occupancy = {
+            zone: 0 for zone in self.graph.zones
+        }
+
+        for drone in self.graph.drones:
+            if drone.id not in self.in_transit:
+                self.occupancy[drone.current_zone] += 1
 
     def run_simulation(self) -> tuple[SimulationOutput, int]:
-        """Run the simulation until every drone reaches the end hub.
-
-        Returns:
-            A tuple containing the movement history grouped by turn and the
-            total number of simulation turns. Each movement contains a drone
-            ID and a destination zone or transit connection name.
+        """
         """
         self._init_simulation()
-        turns = 0
+        self.output = self._build_schedule()
 
-        while any(
-            drone.current_zone is not self.graph.end_hub
-            for drone in self.graph.drones
-        ):
-            self._update_simulation()
-            turns += 1
+        for turn in self.output:
+            self._apply_turn(turn)
 
-        return self.output, turns
+        return self.output, len(self.output)

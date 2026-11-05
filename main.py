@@ -138,6 +138,7 @@ if __name__ == "__main__":
         router = Router(graph)
         simulation = Simulation(graph, router)
         output, turns = simulation.run_simulation()
+        print(turns)
     except ValueError as e:
         print(f"Error: {e}", file=stderr)
         exit(1)
