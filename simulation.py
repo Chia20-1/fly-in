@@ -57,7 +57,7 @@ class Scheduler:
 
         return True
 
-    def schedule_drone(self, drone: Drone, route: Route) -> None:
+    def _find_earliest_plan(self, route: Route) -> Plan:
         """
         """
         departure_delay = 0
@@ -66,6 +66,24 @@ class Scheduler:
         while not self._has_capacity_for_plan(plan):
             departure_delay += 1
             plan = self._make_plan(route, departure_delay)
+
+        return plan
+
+    def schedule_drone(self, drone: Drone, routes: list[Route]) -> None:
+        """
+        """
+        if not routes:
+            raise ValueError("No candidate routes supplied")
+
+        plans = [
+            self._find_earliest_plan(route)
+            for route in routes
+        ]
+
+        plan = min(
+            plans,
+            key=lambda candidate: candidate[-1][0] if candidate else 0,
+        )
 
         for arrival_turn, destination, connection in plan:
             crossing_turn = arrival_turn
@@ -124,11 +142,27 @@ class Simulation:
 
         self._update_occupancy()
 
+    def _get_candidate_routes(self) -> list[Route]:
+        """
+        """
+        best = self.router.get_best_route(self.graph.end_hub.name)
+        routes: list[Route] = [best]
+
+        for _, connection in best:
+            alternative = self.router.get_alternate_route(
+                self.graph.start_hub,
+                connection,
+            )
+            if alternative is not None and alternative not in routes:
+                routes.append(alternative)
+
+        return routes
+
     def _build_schedule(self) -> SimulationOutput:
         """
         """
         scheduler = Scheduler(self.graph)
-        route = self.router.get_best_route(self.graph.end_hub.name)
+        route = self._get_candidate_routes()
 
         for drone in self.graph.drones:
             scheduler.schedule_drone(drone, route)
