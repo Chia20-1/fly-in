@@ -4,6 +4,7 @@ from map_validation import MapValidation
 from models import Graph
 from router import Router
 from simulation import Simulation
+from renderer import TextOutput
 from pydantic import ValidationError
 from error import MapValidationError, MapParserError
 from sys import argv, stderr, exit
@@ -138,7 +139,8 @@ if __name__ == "__main__":
         router = Router(graph)
         simulation = Simulation(graph, router)
         output, turns = simulation.run_simulation()
-        print(turns)
     except ValueError as e:
         print(f"Error: {e}", file=stderr)
         exit(1)
+    text_output = TextOutput(output, turns)
+    text_output.print_output()

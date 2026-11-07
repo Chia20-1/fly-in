@@ -77,6 +77,30 @@ Build simulation graph
 
 # Visual Representation
 
+┌──────────────────────────────┐
+│ Turn counter / controls      │ 80 pixels
+├──────────────────────────────┤
+│                              │
+│ Map, with 60 pixels padding  │ 620 pixels
+│ around its edges             │
+│                              │
+├──────────────────────────────┤
+│ Status / legend              │ 100 pixels
+└──────────────────────────────┘
+          1200 pixels
+
+```Python
+self.width = 1200
+self.height = 800
+self.margin = 60
+self.radius = 14
+
+self.header_height = 80
+self.footer_height = 100
+```
+
 # Resources
 - **Dijkstra Algorithm:** Hand-drawn practice for finding the shortest path across vertices — [YouTube](https://www.youtube.com/watch?v=eFZCPlZCyIM)
 - **Dijkstra Alrgorithm:** Concept explaination and understanding — [Youtube](https://www.youtube.com/watch?v=bZkzH5x0SKU)
+- **pygame official** - [pygame.org](https://www.pygame.org/docs/tut/newbieguide.html)
+- **pygame introduction** - [GeeksforGeeks](https://www.geeksforgeeks.org/python/pygame-tutorial/)
