@@ -1,4 +1,5 @@
 from simulation import SimulationOutput
+from models import Graph
 import pygame
 
 
@@ -50,10 +51,21 @@ pygame.time.Clock  |  Control animation frame rate	            |
 class Renderer:
     """
     """
-    def __init__(self, output: SimulationOutput, turns: int) -> None:
+    def __init__(
+            self,
+            graph: Graph,
+            output: SimulationOutput
+    ) -> None:
         """
         """
-        pygame.init()
+        self.graph = graph
+        self.output = output
+        self._init_display_state()
+
+    def _init_display_state(self) -> None:
+        """
+        """
+        self.current_turn = 0
         self.width = 1200
         self.height = 800
         self.margin = 60
@@ -67,20 +79,39 @@ class Renderer:
             - self.footer_height
             - 2 * self.margin
         )
+        self._update_positions()
 
-    def start(self) -> None:
+    def _start(self) -> None:
         """
         """
+        pygame.init()
         self.screen = pygame.display.set_mode((1200, 800))
-        self.pygame.display.set_caption("Fly-In")
+        pygame.display.set_caption("Fly-In")
         self.clock = pygame.time.Clock()
 
-    def configure_layout() -> None:
+    def _update_positions(self) -> None:
+        """
+        """
+        self.positions: dict[int, str] = {
+            drone.id: self.graph.start_hub.name
+            for drone in self.graph.drones
+        }
+
+        for turn in self.output[:self.current_turn]:
+            for drone_id, location in turn:
+                self.positions[drone_id] = location
+
+    def _set_turn(self, turn: int) -> None:
+        if 0 <= turn <= len(self.output):
+            self.current_turn = turn
+            self._update_positions()
+
+    def configure_layout(self) -> None:
         """
         """
         pass
 
-    def to_screen() -> None:
+    def to_screen(self) -> None:
         """
         """
         pass

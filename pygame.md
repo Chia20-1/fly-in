@@ -37,4 +37,4 @@ Use Space or arrow keys to advance simulation turns.
 
 [ ] Handle restricted zones
 
-Display drones occupying connections during two-turn movement.
+Display drones occupying connections during two-turn movement. 
