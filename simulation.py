@@ -10,17 +10,50 @@ SimulationOutput = list[Turn]
 
 class Scheduler:
     """
+    Build capacity-aware movement schedules for drones.
+
+    Schedule drones greedily using existing reservations. For each candidate
+    route, delay departure until the full plan fits, then select the plan
+    with the earliest final arrival. Previously reserved plans are unchanged.
+
+    Attributes:
+        graph: Map containing the zones, connections, and endpoint hubs.
+        output: Movements grouped by turn. Each movement contains a drone ID
+            and a zone name or connection name. Index 0 represents turn 1.
+        zone_reservation: Arrival counts keyed by arrival turn and zone.
+        link_reservation: Crossing counts keyed by crossing turn
+            and connection.
     """
     def __init__(self, graph: Graph) -> None:
         """
+        Initialize a scheduler with no reservations or movements.
+
+        Args:
+            graph: Map whose zones and connections define movement capacities.
         """
         self.graph: Graph = graph
         self.output: SimulationOutput = []
-        self.zone_use: dict[tuple[int, Zone], int] = {}
-        self.link_use: dict[tuple[int, Connection], int] = {}
+        self.zone_reservation: dict[tuple[int, Zone], int] = {}
+        self.link_reservation: dict[tuple[int, Connection], int] = {}
 
     def _make_plan(self, route: Route, delay: int) -> Plan:
         """
+        Build a timed route plan with the given departure delay.
+
+        Entering a restricted zone takes two turns; entering any other
+        allowed zone takes one turn. This method does not check or
+        reserve capacity.
+
+        Args:
+            route: Ordered sequence of destination zones and connections.
+            delay: Number of turns to wait before starting the route.
+
+        Returns:
+            A list of tuples containing the arrival turn, destination zone,
+            and connection used for each step of the route.
+        
+        Raises:
+            ValueError: If the route enters a blocked zone.
         """
         turn = delay
         plan: Plan = []
@@ -35,6 +68,21 @@ class Scheduler:
 
     def _has_capacity_for_plan(self, plan: Plan) -> bool:
         """
+        Check whether a plan fits within the existing reservations.
+
+        Check zone capacity on each arrival turn and connection capacity on
+        each crossing turn. Start and end hubs have unlimited zone capacity.
+
+        For restricted zones, crossing occurs one turn before arrival.
+
+        This method does not modify reservations.
+
+        Args:
+            plan: Timed route plan to check.
+
+        Returns:
+            True if every step fits within the available capacity;
+            otherwise, False.
         """
         for arrival, destination, connection in plan:
             crossing = arrival
@@ -47,11 +95,11 @@ class Scheduler:
             )
 
             if not has_unlimited_zone_capacity:
-                occupied = self.zone_use.get((arrival, destination), 0)
+                occupied = self.zone_reservation.get((arrival, destination), 0)
                 if occupied >= destination.max_drones:
                     return False
 
-            used = self.link_use.get((crossing, connection), 0)
+            used = self.link_reservation.get((crossing, connection), 0)
             if used >= connection.max_link_capacity:
                 return False
 
@@ -59,6 +107,20 @@ class Scheduler:
 
     def _find_earliest_plan(self, route: Route) -> Plan:
         """
+        Find the earliest feasible plan for a route.
+
+        Start with no departure delay, then increase the delay one turn at a
+        time until the plan fits within the existing reservations. This method
+        does not reserve capacity.
+
+        Args:
+            route: Ordered sequene of destination zones and connections.
+
+        Returns:
+            The timed route plan with the earliest feasible departure.
+
+        Raises:
+            ValueError: If the route enters a blocked zone.
         """
         departure_delay = 0
         plan = self._make_plan(route, departure_delay)
@@ -71,6 +133,23 @@ class Scheduler:
 
     def schedule_drone(self, drone: Drone, routes: list[Route]) -> None:
         """
+        Reserve a route for a drone and record its movements.
+
+        Find the earliest feasible plan for each candidate route, then
+        select the plan with the earliest final arrival. If plans have
+        the same final arrival turn, select the first one.
+
+        Update zone and connection reservations. Append movements to the
+        output. For restricted zones, record the connection crossing one
+        turn before the zone arrival. Existing plans remain unchanged.
+
+        Args:
+            drone: Drone whose movements will be scheduled.
+            routes: Candidate routes to consider.
+        
+        Raises:
+            ValueError: If no candidate routes are supplied or a candidate
+                route eneters a blocked zone.
         """
         if not routes:
             raise ValueError("No candidate routes supplied")
@@ -93,11 +172,15 @@ class Scheduler:
 
             # Reserve zone capacity for arrival turn
             zone_key = (arrival_turn, destination)
-            self.zone_use[zone_key] = self.zone_use.get(zone_key, 0) + 1
+            self.zone_reservation[zone_key] = (
+                self.zone_reservation.get(zone_key, 0) + 1
+            )
 
             # Reserve connection capacity on the crossing turn
             link_key = (crossing_turn, connection)
-            self.link_use[link_key] = self.link_use.get(link_key, 0) + 1
+            self.link_reservation[link_key] = (
+                self.link_reservation.get(link_key, 0) + 1
+            )
 
             # Create output entries up to the arrival turn
             while len(self.output) < arrival_turn:
@@ -118,9 +201,33 @@ class Scheduler:
 
 class Simulation:
     """
+    Build and apply a turn-based movement schedule for drones.
+
+    Use the router to obtain candidate routes and the scheduler to plan
+    movement for all drones. Apply the schedule one turn at a time,
+    updating drone locations, connection transit, and zone occupancy.
+
+    Attributes:
+        graph: Map containing the zones, connections, hubs, and drones.
+        router: Route finder used to obtain candidate routes.
+        occupancy: Number of drones currently in each zone, excluding
+            drones in transit.
+        in_transit: Connection labels keyed by the IDs of drones
+            currently crossing connections.
+        output: Scheduled movements grouped by turn. Each movement
+            contains a drone ID and a zone name or connection label.
+            Index 0 represents turn 1.
     """
     def __init__(self, graph: Graph, router: Router) -> None:
         """
+        Initialize a simulation with a graph and router.
+
+        Index drones by ID and create empty occupancy, transit, and
+        movement records. Drone locations are left unchanged.
+
+        Args:
+            graph: Map containing the zones, connections, hubs and drones.
+            router: Route finder used to obtain candidate routes.
         """
         self.graph = graph
         self.router = router
@@ -132,18 +239,22 @@ class Simulation:
         self.output: SimulationOutput = []
 
     def _init_simulation(self) -> None:
-        """
-        """
+        """Compute zone occupancy from the drones' current locations."""
         self.output = []
         self.in_transit.clear()
-
-        for drone in self.graph.drones:
-            drone.current_zone = self.graph.start_hub
-
         self._update_occupancy()
 
     def _get_candidate_routes(self) -> list[Route]:
         """
+        Collect the best route and unique alternative routes.
+
+        Start with the router's best route to the end hub. For each
+        conneciton in that route, request an alternative route from the
+        start hub, excluding that connection. Ignore missing or duplicate
+        alternatives.
+
+        Returns:
+            A list containing the best route followed by unique alternatives.
         """
         best = self.router.get_best_route(self.graph.end_hub.name)
         routes: list[Route] = [best]
@@ -160,6 +271,15 @@ class Simulation:
 
     def _build_schedule(self) -> SimulationOutput:
         """
+        Build a capacity-aware movement schedule for all drones.
+
+        Use a new scheduler to scheduler drones in their graph order,
+        considering the same candidate routes for each drone.
+
+        This method does not update drone locations.
+
+        Returns:
+            Scheduled movements grouped by turn. Index 0 represents turn 1.
         """
         scheduler = Scheduler(self.graph)
         route = self._get_candidate_routes()
@@ -171,6 +291,19 @@ class Simulation:
 
     def _apply_turn(self, turn: Turn) -> None:
         """
+        Apply one turn of scheduled movements and refresh zone occupancy.
+
+        Treat locations found in the graph's zone lookup as zone arrivals.
+        Update those drones' current zones and remove their transit records.
+        Treat other locations as conneciton labels and mark those drones as
+        in transit without changing their current zones.
+
+        Args:
+            turn: Movements containing a drone ID and a zone name or
+                connection label.
+        
+        Raises:
+            KeyError: If a movement refrences an unknown drone ID.
         """
         for drone_id, location in turn:
             drone = self._drones_by_id[drone_id]
@@ -186,6 +319,10 @@ class Simulation:
 
     def _update_occupancy(self) -> None:
         """
+        Recalculate the number of drones currently in each zone.
+
+        Reset all zone counts, then count each drone at its current zone
+        unless the drone is marked as in transit.
         """
         self.occupancy = {
             zone: 0 for zone in self.graph.zones
@@ -195,8 +332,19 @@ class Simulation:
             if drone.id not in self.in_transit:
                 self.occupancy[drone.current_zone] += 1
 
-    def run_simulation(self) -> tuple[SimulationOutput, int]:
+    def run_simulation(self) -> SimulationOutput:
         """
+        Build and apply the complete movement scheduke.
+
+        Clear previous schedule and transit records, build a new schedule,
+        then apply its movements one turn at a time. Update drone locations,
+        transit records, and zone occupancy as each turn is applied.
+
+        Drone loations are not reset before scheduling.
+
+        Returns:
+            A tuple containing the movements grouped by turn and the
+            total number of turns.
         """
         self._init_simulation()
         self.output = self._build_schedule()
@@ -204,4 +352,4 @@ class Simulation:
         for turn in self.output:
             self._apply_turn(turn)
 
-        return self.output, len(self.output)
+        return self.output

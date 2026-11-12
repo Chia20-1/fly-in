@@ -23,11 +23,10 @@ COLORS = {
 class TextOutput:
     """
     """
-    def __init__(self, output: SimulationOutput, turns: int) -> None:
+    def __init__(self, output: SimulationOutput) -> None:
         """
         """
         self.output = output
-        self.turns = turns
 
     def print_output(self) -> None:
         for turn in self.output:
@@ -35,7 +34,7 @@ class TextOutput:
                 drone_id, destination = movement
                 print(f"D{drone_id}-{destination}", end=" ")
             print()
-        print(f"Turns: {self.turns}")
+        print(f"Turns: {len(self.turns)}")
 
 
 """

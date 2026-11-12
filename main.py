@@ -138,9 +138,9 @@ if __name__ == "__main__":
     try:
         router = Router(graph)
         simulation = Simulation(graph, router)
-        output, turns = simulation.run_simulation()
+        output = simulation.run_simulation()
     except ValueError as e:
         print(f"Error: {e}", file=stderr)
         exit(1)
-    text_output = TextOutput(output, turns)
+    text_output = TextOutput(output)
     text_output.print_output()
