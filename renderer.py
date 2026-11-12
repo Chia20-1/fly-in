@@ -106,17 +106,27 @@ class Renderer:
             self.current_turn = turn
             self._update_positions()
 
-    def configure_layout(self) -> None:
+    def _configure_layout(self) -> None:
+        """Configure the scale and offsets that center the graph.
+
+        Use a shared scale to preserve proportions, ignoring zero coordinate
+        spans. If both spans are zero, use a scale of 1.0. Account for negative
+        coordinates and drawing-area margins. Screen coordinates are computed
+        as coordinate * scale + offset, with y increasing downward.
+        """
+        min_x = min(zone.x for zone in self.graph.zones)
+        max_x = max(zone.x for zone in self.graph.zones)
+        min_y = min(zone.y for zone in self.graph.zones)
+        max_y = max(zone.y for zone in self.graph.zones)
+        span_x = max_x - min_x
+        span_y = max_y - min_y
+
+    def _to_screen(self) -> None:
         """
         """
         pass
 
-    def to_screen(self) -> None:
-        """
-        """
-        pass
-
-    def draw(self, output: SimulationOutput, turns: int) -> None:
+    def _draw(self, output: SimulationOutput, turns: int) -> None:
         """
         """
         pass
@@ -124,4 +134,5 @@ class Renderer:
     def run(self) -> None:
         """
         """
-        pass
+        self._start()
+        self._configure_layout()
