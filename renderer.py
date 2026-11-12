@@ -34,7 +34,7 @@ class TextOutput:
                 drone_id, destination = movement
                 print(f"D{drone_id}-{destination}", end=" ")
             print()
-        print(f"Turns: {len(self.turns)}")
+        print(f"Turns: {len(self.output)}")
 
 
 """

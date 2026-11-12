@@ -237,11 +237,6 @@ class Simulation:
         self.occupancy: dict[Zone, int] = {}
         self.in_transit: dict[int, str] = {}
         self.output: SimulationOutput = []
-
-    def _init_simulation(self) -> None:
-        """Compute zone occupancy from the drones' current locations."""
-        self.output = []
-        self.in_transit.clear()
         self._update_occupancy()
 
     def _get_candidate_routes(self) -> list[Route]:
@@ -282,10 +277,10 @@ class Simulation:
             Scheduled movements grouped by turn. Index 0 represents turn 1.
         """
         scheduler = Scheduler(self.graph)
-        route = self._get_candidate_routes()
+        routes = self._get_candidate_routes()
 
         for drone in self.graph.drones:
-            scheduler.schedule_drone(drone, route)
+            scheduler.schedule_drone(drone, routes)
 
         return scheduler.output
 
@@ -346,7 +341,6 @@ class Simulation:
             A tuple containing the movements grouped by turn and the
             total number of turns.
         """
-        self._init_simulation()
         self.output = self._build_schedule()
 
         for turn in self.output:
