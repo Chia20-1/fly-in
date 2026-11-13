@@ -4,7 +4,7 @@ from map_validation import MapValidation
 from models import Graph
 from router import Router
 from simulation import Simulation
-from renderer import TextOutput
+from renderer import TextOutput, Renderer
 from pydantic import ValidationError
 from error import MapValidationError, MapParserError
 from sys import argv, stderr, exit
@@ -143,4 +143,5 @@ if __name__ == "__main__":
         print(f"Error: {e}", file=stderr)
         exit(1)
     text_output = TextOutput(output)
-    text_output.print_output()
+    renderer = Renderer(graph, output)
+    renderer.run()

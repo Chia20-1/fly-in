@@ -51,7 +51,7 @@ class Scheduler:
         Returns:
             A list of tuples containing the arrival turn, destination zone,
             and connection used for each step of the route.
-        
+
         Raises:
             ValueError: If the route enters a blocked zone.
         """
@@ -146,7 +146,7 @@ class Scheduler:
         Args:
             drone: Drone whose movements will be scheduled.
             routes: Candidate routes to consider.
-        
+
         Raises:
             ValueError: If no candidate routes are supplied or a candidate
                 route enters a blocked zone.
@@ -296,7 +296,7 @@ class Simulation:
         Args:
             turn: Movements containing a drone ID and a zone name or
                 connection label.
-        
+
         Raises:
             KeyError: If a movement references an unknown drone ID.
         """

@@ -372,13 +372,42 @@ covers button hit testing.
 Passing `graph` is necessary because output strings contain no map geometry.
 The existing graph already supplies the lookup you need.
 
-## 12. Build and check it in this order
+## 12. Suggested next steps for the current renderer
 
-1. Open a window and make the close button work.
-2. Draw the graph's connections, zones, and names.
-3. Rebuild positions for a manually selected turn.
-4. Draw drones at zones and connection midpoints.
-5. Add Next and Previous buttons.
+The design in `renderer.py` is a workable foundation. Complete it incrementally:
+
+1. **Finish layout scaling and coordinate conversion.** Complete
+   `_configure_layout()` and give `_to_screen()` the signature
+   `_to_screen(self, x: float, y: float) -> tuple[int, int]`. Use one shared
+   scale, ignore zero spans, and center the graph in the available area.
+   The current renderer's docstring specifies increasing y downward; use that
+   convention consistently, or deliberately choose the upward-y alternative
+   illustrated in section 7.
+2. **Draw a static graph.** Draw connections first, then zones and labels.
+   Make `_draw(self)` read the existing renderer state instead of accepting
+   duplicate `output` and `turns` arguments. In `_start()`, create the window
+   using `(self.width, self.height)` rather than hard-coded dimensions.
+   Add an event loop in `run()` that handles window closing, draws the frame,
+   calls `pygame.display.flip()`, and limits the frame rate. Ensure
+   `pygame.quit()` runs through a `try/finally` around the window lifecycle.
+3. **Add forward and backward turn controls.** Route button clicks and
+   keyboard shortcuts through the existing `_set_turn()`. Verify that turn 0
+   is the initial state and turn `len(self.output)` is the final state.
+4. **Draw drones at their recorded locations.** Check for zone names first;
+   otherwise resolve the scheduler's connection token and draw the drone at
+   the connection midpoint. A connection-label lookup built from
+   `graph.connections` is an alternative to splitting tokens and avoids
+   depending on the zone-name restriction. Show a count or combined label
+   when several drones share a location so they do not hide one another.
+5. **Add autoplay or smooth movement only after manual stepping works.**
+   Frame rate and simulation turns should remain separate concepts.
+
+When ready to test the viewer, import `Renderer` in `main.py` and call
+`Renderer(graph, output).run()` after producing the simulation output.
+
+First layout exercise: if `span_x == 0` but `span_y > 0`, which span should
+determine the scale? Confirm the vertical graph stays centered without
+dividing by zero.
 
 Check the linear map first. Confirm a waiting drone stays at start and a
 delivered drone stays at goal. Then use
