@@ -118,7 +118,7 @@ class MapParser:
             if value != value.strip():
                 raise MapParserError(
                     f"Invalid map line {line_number}: "
-                    f"unexpected whitesapce around value for '{key}'"
+                    f"unexpected whitespace around value for '{key}'"
                 )
             if not value:
                 raise MapParserError(
@@ -248,7 +248,7 @@ class MapParser:
         Parse a zone's name, coordinates, and optional metadata.
 
         Args:
-            value: A zone name and two coordiantes separated by single spaces,
+            value: A zone name and two coordinates separated by single spaces,
                 optionally followed by a space and bracketed metadata.
 
         Returns:
@@ -310,7 +310,7 @@ class MapParser:
             key is absent.
 
         Raises:
-            MapParserError: If an entry is invalid, with is source line number
+            MapParserError: If an entry is invalid, with its source line number
                 included in the error message.
         """
         entries: list[dict[str, str]] = []

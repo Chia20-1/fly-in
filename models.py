@@ -6,7 +6,7 @@ class Drone:
     Represent a drone and its current location.
 
     Attributes:
-        id: Indentifier assigned when drone is created.
+        id: Identifier assigned when drone is created.
         current_zone: Zone currently occupied by the drone.
     """
     id: int = 1

@@ -18,8 +18,8 @@ def _get_file() -> str:
         The supplied map file path.
 
     Raises:
-        SystemExit: With status 1 after printing ussage to standard error
-            if exactly one argument is provided.
+        SystemExit: With status 1 after printing usage to standard error
+            unless exactly one argument is provided.
     """
     if len(argv) != 2:
         print("Usage example: python3 main.py map_file_path.txt", file=stderr)
@@ -40,7 +40,7 @@ def _get_raw_map(
         Parsed map data, with numeric values still stored as strings.
 
     Raises:
-        SystemExit: Wtih status 1 after printing a file access, decoding,
+        SystemExit: With status 1 after printing a file access, decoding,
             or parsing error to standard error.
     """
     try:

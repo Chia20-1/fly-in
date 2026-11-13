@@ -1,6 +1,6 @@
 class MapValidationError(Exception):
     """
-    Indicate inconsistent zones names or connections in a map.
+    Indicate inconsistent zone names or connections in a map.
 
     Rejects repeated zone names, repeated connections, unknown
     connection end points, and faulty data type conversion.
@@ -14,7 +14,7 @@ class MapParserError(Exception):
 
     Rejects invalid whitespace, missing `:`, unknown or duplicate declaration
     keys, unknown or duplicate value, wrong first declaration, zone names
-    containing `-`, invalid metadata whitspaces, invalid metadata items,
+    containing `-`, invalid metadata whitespace, invalid metadata items,
     repeated metadata keys, and unsupported metadata keys.
     """
     pass

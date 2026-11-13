@@ -31,10 +31,10 @@ class MapValidation():
 
     def _validate_zone(self) -> set[str]:
         """
-        Check that all zones have uniqe names.
+        Check that all zones have unique names.
 
         Raises:
-            MapValidationError: If a zone names appears more than once.
+            MapValidationError: If a zone name appears more than once.
         """
         zones = [self.config.start_hub, self.config.end_hub]
         zones.extend(self.config.hub)

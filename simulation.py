@@ -114,7 +114,7 @@ class Scheduler:
         does not reserve capacity.
 
         Args:
-            route: Ordered sequene of destination zones and connections.
+            route: Ordered sequence of destination zones and connections.
 
         Returns:
             The timed route plan with the earliest feasible departure.
@@ -149,7 +149,7 @@ class Scheduler:
         
         Raises:
             ValueError: If no candidate routes are supplied or a candidate
-                route eneters a blocked zone.
+                route enters a blocked zone.
         """
         if not routes:
             raise ValueError("No candidate routes supplied")
@@ -244,7 +244,7 @@ class Simulation:
         Collect the best route and unique alternative routes.
 
         Start with the router's best route to the end hub. For each
-        conneciton in that route, request an alternative route from the
+        connection in that route, request an alternative route from the
         start hub, excluding that connection. Ignore missing or duplicate
         alternatives.
 
@@ -268,7 +268,7 @@ class Simulation:
         """
         Build a capacity-aware movement schedule for all drones.
 
-        Use a new scheduler to scheduler drones in their graph order,
+        Use a new scheduler to schedule drones in their graph order,
         considering the same candidate routes for each drone.
 
         This method does not update drone locations.
@@ -290,7 +290,7 @@ class Simulation:
 
         Treat locations found in the graph's zone lookup as zone arrivals.
         Update those drones' current zones and remove their transit records.
-        Treat other locations as conneciton labels and mark those drones as
+        Treat other locations as connection labels and mark those drones as
         in transit without changing their current zones.
 
         Args:
@@ -298,7 +298,7 @@ class Simulation:
                 connection label.
         
         Raises:
-            KeyError: If a movement refrences an unknown drone ID.
+            KeyError: If a movement references an unknown drone ID.
         """
         for drone_id, location in turn:
             drone = self._drones_by_id[drone_id]
@@ -329,13 +329,13 @@ class Simulation:
 
     def run_simulation(self) -> SimulationOutput:
         """
-        Build and apply the complete movement scheduke.
+        Build and apply the complete movement schedule.
 
         Clear previous schedule and transit records, build a new schedule,
         then apply its movements one turn at a time. Update drone locations,
         transit records, and zone occupancy as each turn is applied.
 
-        Drone loations are not reset before scheduling.
+        Drone locations are not reset before scheduling.
 
         Returns:
             A tuple containing the movements grouped by turn and the
