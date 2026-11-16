@@ -92,7 +92,7 @@ class Renderer:
         """Initialize Pygame, display state, font, window, and frame clock."""
         pygame.init()
 
-        self.current_turn= 0
+        self.current_turn = 0
         self._init_window_size()
         self._init_layout()
         self._init_button()
@@ -171,7 +171,7 @@ class Renderer:
         Args:
             x: Horizontal map coordinate.
             y: Vertical map coordinate.
-        
+
         Returns:
             Rounded screen coordinates as an (x, y) pair.
         """
@@ -282,7 +282,7 @@ class Renderer:
             messages: Nonempty list of movement messages to arrange.
             text_top: Vertical pixel coordinate where message rows begin.
             padding: Space in pixels to reserve below the message rows.
-        
+
         Returns:
             A tuple containing the row count, column count, and column width
             in pixels. Return three zeros if no rows fit.
@@ -303,7 +303,7 @@ class Renderer:
         Args:
             message: Text to measure using the current font.
             max_width: Maximum permitted text width in pixels.
-        
+
         Returns:
             The original message if it fits, otherwise shortened text ending
             in '...'. Return an empty string if even '...' does not fit.
