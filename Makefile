@@ -11,7 +11,7 @@ run:
 	@PYGAME_HIDE_SUPPORT_PROMPT=1 $(PYTHON) main.py "$(MAP)"
 
 visual:
-	@PYGAME_HIDE_SUPPORT_PROMPT=1 $(PYTHON) main.py $(MAP) --visual
+	@PYGAME_HIDE_SUPPORT_PROMPT=1 $(PYTHON) main.py "$(MAP)" --visual
 
 debug:
 	$(PYTHON) -m pdb main.py "$(MAP)"

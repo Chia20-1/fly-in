@@ -3,15 +3,95 @@
 # Description
 
 
-# Instruction
+# Instructions 
 
-How to access the map:
+### Requirements
+
+- Python 3.10 or later
+- `make`
+- A graphical desktop environment for visualization mode
+
+### Install dependencies
+
+From the project root, run:
+```sh
+make install
+```
+
+This creates a virtual environment at `.venv/` and installs the runtime
+dependencies (`pydantic` and `pygame`) and development tools (`flake8`
+and `mypy`).
+
+### Run in text mode
+
+Run the default map in text mode:
 
 ```sh
-python3 main.py <map_file_path>  # Required positional argument
-make run                       # Use the default map
-make run MAP=<map_file_path>    # Override the default map
+make run
 ```
+
+Run a specific map in text mode:
+
+```sh
+make run MAP=maps/hard/03_ultimate_challenge.txt
+```
+
+### Run in visualization mode
+
+Open the default map in a Pygame window:
+
+```sh
+make visual
+```
+
+Open a specific map in a Pygame window:
+```sh
+make visual MAP=maps/medium/02_circular_loop.txt
+```
+
+### Run via the Python entry point
+
+```
+.venv/bin/python main.py <map_file_path> [--visual]
+```
+
+- `<map_file_path>`: required path to a map file.
+- `--visual`: optional flag that enables graphical visualization.
+  Place it after the map path.
+
+Paths are relative to the current working directory unless an absolute path
+is supplied. Errors are printed to standard error, and the program exits
+with a nonzero status when execution fails.
+
+### Development commands
+
+Run linter-standard check and type annotation check:
+```sh
+make lint
+```
+
+Run stricter code-style and type check:
+```sh
+make lint-strict
+```
+
+Run the program using Python's debugger:
+```sh
+make debug MAP=maps/easy/01_linear_path.txt
+```
+
+Remove generated caches only:
+```sh
+make clean
+```
+
+Remove generated caches and the virtual environment:
+```sh
+make fclean
+```
+
+> After `make fclean`, run `make install` before executing the program again.
+ 
 
 # Architecture
 ```
