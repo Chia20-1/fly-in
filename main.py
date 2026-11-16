@@ -161,9 +161,15 @@ if __name__ == "__main__":
         print(f"Error: {e}", file=stderr)
         exit(1)
     if visual:
+        from pygame import error as PygameError
         from renderer import Renderer
-        renderer = Renderer(graph, output)
-        renderer.run()
+
+        try:
+            renderer = Renderer(graph, output)
+            renderer.run()
+        except PygameError as error:
+            print(f"Graphics error: {error}", file=stderr)
+            exit(1)
     else:
         from text_output import TextOutput
         text_output = TextOutput(output)
