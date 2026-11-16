@@ -34,18 +34,19 @@ class MapParser:
             Numeric values remain strings for later configuration validation.
 
         Raises:
-            MapParserError: If file access fails or the map's syntax or
-                declaration structure is invalid.
+            MapParserError: If file access fails, declaration syntax or
+                structure is invalid, or a connection references a zone
+                not yet declared.
         """
         raw_map = self._parse_raw()
-        for key, entries in raw_map.items():
-            line_numbers = []
-            for line_number, _ in entries:
-                line_numbers.append(line_number)
-            self.line_numbers[key] = line_numbers
+        self.line_numbers = {
+            key: [line_number for line_number, _ in entries]
+            for key, entries in raw_map.items()
+        }
+        parsed = self._parse_declarations(raw_map)
 
-        start = self._parse_entries("start_hub", raw_map)[0]
-        end = self._parse_entries("end_hub", raw_map)[0]
+        start = parsed["start_hub"][0]
+        end = parsed["end_hub"][0]
 
         start.pop("max_drones", None)
         end.pop("max_drones", None)
@@ -54,8 +55,8 @@ class MapParser:
            "nb_drones": raw_map["nb_drones"][0][1],
            "start_hub": start,
            "end_hub": end,
-           "hub": self._parse_entries("hub", raw_map),
-           "connection": self._parse_entries("connection", raw_map),
+           "hub": parsed.get("hub", []),
+           "connection": parsed["connection"],
         }
         return config_dict
 
@@ -144,15 +145,14 @@ class MapParser:
 
         Raises:
             MapParserError: If nb_drones, start_hub, or end_hub does not occur
-                exactly once, or no hub or connection is declared.
+                exactly once, or no connection is declared.
         """
         for key in ("start_hub", "end_hub", "nb_drones"):
             if len(raw_map.get(key, [])) != 1:
                 raise MapParserError(f"Map must contain exactly one {key}")
 
-        for key in ("hub", "connection"):
-            if not raw_map.get(key):
-                raise MapParserError(f"Map must contain at least one {key}")
+        if not raw_map.get("connection"):
+            raise MapParserError("Map must contain at least one connection")
 
     def _parse_raw(self) -> dict[str, list[tuple[int, str]]]:
         """
@@ -169,40 +169,56 @@ class MapParser:
         self._check_structure(raw_map)
         return raw_map
 
-    def _parse_metadata(self, metadata: str | None) -> dict[str, str]:
+    def _parse_declarations(
+            self,
+            raw_map: dict[str, list[tuple[int, str]]],
+    ) -> dict[str, list[dict[str, str]]]:
         """
-        Parse optional bracketed metadata into key-value pairs.
+        Parse zone and connection declarations in source-line order.
 
         Args:
-            metadata: Bracketed, space-separated key=value pairs, or an
-                empty value when metadata is present.
+            raw_map: Declarations grouped by key, with line numbers and values.
 
         Returns:
-            Parsed attributes, or an empty dictionary when metadata
-            is absent.
+            Parsed zones and connections grouped by declaration key.
 
         Raises:
-            MapParserError: If brackets, whitespace, or key-value pairs are
-                malformed, or a key appears more than once.
+            MapParserError: If a declaration is invalid or a connection
+                references a zone not yet declared. Include the source
+                line number in the error message.
         """
-        attributes: dict[str, str] = {}
-        if not metadata:
-            return attributes
-        if not metadata.startswith("[") or not metadata.endswith("]"):
-            raise MapParserError("Invalid metadata brackets")
-        content = metadata[1:-1]
-        if content != " ".join(content.split()):
-            raise MapParserError("Invalid whitespace in metadata")
-        for item in content.split():
-            if item.count("=") != 1:
-                raise MapParserError(f"Invalid metadata: {item}")
-            key, separator, value = item.partition("=")
-            if not separator or not key or not value:
-                raise MapParserError(f"Invalid metadata: {item}")
-            if key in attributes:
-                raise MapParserError(f"Duplicate metadata: {key}")
-            attributes[key] = value
-        return attributes
+        declarations = sorted(
+            (line_number, key, value)
+            for key, entries in raw_map.items()
+            if key != "nb_drones"
+            for line_number, value in entries
+        )
+
+        parsed: dict[str, list[dict[str, str]]] = {}
+        defined_zones: set[str] = set()
+
+        for line_number, key, value in declarations:
+            try:
+                if key == "connection":
+                    entry = self._parse_connection(value)
+
+                    for endpoint in ("from_zone", "to_zone"):
+                        name = entry[endpoint]
+                        if name not in defined_zones:
+                            raise MapParserError(
+                                f"Connection endpoint '{name}' "
+                                "must be defined before the connection"
+                            )
+                else:
+                    entry = self._parse_zone(value)
+                    defined_zones.add(entry["name"])
+            except MapParserError as error:
+                raise MapParserError(
+                    f"Invalid map line {line_number}: {error}"
+                ) from error
+
+            parsed.setdefault(key, []).append(entry)
+        return parsed
 
     def _parse_connection(self, value: str) -> dict[str, str]:
         """
@@ -292,42 +308,40 @@ class MapParser:
         config.update(attributes)
         return config
 
-    def _parse_entries(
-            self,
-            key: str,
-            raw_map: dict[str, list[tuple[int, str]]],
-    ) -> list[dict[str, str]]:
+    def _parse_metadata(self, metadata: str | None) -> dict[str, str]:
         """
-        Parse declarations for a key and add line numbers to parsing errors.
+        Parse optional bracketed metadata into key-value pairs.
 
         Args:
-            key: Declaration key to parse. Use connection for connections;
-                other keys are parsed as zones.
-            raw_map: Declarations grouped by key, with line numbers and values.
+            metadata: Bracketed, space-separated key=value pairs, or an
+                empty value when metadata is present.
 
         Returns:
-            Parsed entries in declaration order, or an empty list if the
-            key is absent.
+            Parsed attributes, or an empty dictionary when metadata
+            is absent.
 
         Raises:
-            MapParserError: If an entry is invalid, with its source line number
-                included in the error message.
+            MapParserError: If brackets, whitespace, or key-value pairs are
+                malformed, or a key appears more than once.
         """
-        entries: list[dict[str, str]] = []
-
-        for line_number, value in raw_map.get(key, []):
-            try:
-                if key == "connection":
-                    entry = self._parse_connection(value)
-                else:
-                    entry = self._parse_zone(value)
-            except MapParserError as error:
-                raise MapParserError(
-                    f"Invalid map line {line_number}: {error}"
-                ) from error
-
-            entries.append(entry)
-        return entries
+        attributes: dict[str, str] = {}
+        if not metadata:
+            return attributes
+        if not metadata.startswith("[") or not metadata.endswith("]"):
+            raise MapParserError("Invalid metadata brackets")
+        content = metadata[1:-1]
+        if content != " ".join(content.split()):
+            raise MapParserError("Invalid whitespace in metadata")
+        for item in content.split():
+            if item.count("=") != 1:
+                raise MapParserError(f"Invalid metadata: {item}")
+            key, separator, value = item.partition("=")
+            if not separator or not key or not value:
+                raise MapParserError(f"Invalid metadata: {item}")
+            if key in attributes:
+                raise MapParserError(f"Duplicate metadata: {key}")
+            attributes[key] = value
+        return attributes
 
     def _validate_metadata_keys(self,
                                 attributes: dict[str, str],
