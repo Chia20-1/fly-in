@@ -10,6 +10,9 @@ install: venv
 run:
 	@PYGAME_HIDE_SUPPORT_PROMPT=1 $(PYTHON) main.py "$(MAP)"
 
+visual:
+	@PYGAME_HIDE_SUPPORT_PROMPT=1 $(PYTHON) main.py $(MAP) --visual
+
 debug:
 	$(PYTHON) -m pdb main.py "$(MAP)"
 
@@ -33,4 +36,4 @@ lint-strict:
 	$(PYTHON) -m flake8 . --exclude=.venv
 	$(PYTHON) -m mypy . --exclude '(^|/)\.venv/' --strict
 
-.PHONY: venv install run debug clean lint lint-strict
+.PHONY: venv install run visual debug clean lint lint-strict
