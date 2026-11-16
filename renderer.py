@@ -22,16 +22,6 @@ COLORS = {
 }
 
 
-"""
-Pygame concept     |  What you'll use it for                    |
-pygame.display     |  Create a visualization window             |
-pygame.draw	       |  Draw zones and connections                |
-pygame.font	       |  Show zone names and drone IDs             |
-pygame.event       |  Detect keyboard input and window closing  |
-pygame.time.Clock  |  Control animation frame rate	            |
-"""
-
-
 class Renderer:
     """
     Display simulation turns in an interactive Pygame window.
@@ -74,8 +64,6 @@ class Renderer:
             - self.footer_height
             - 2 * self.margin
         )
-        self._init_button()
-        self._update_positions()
 
     def _init_window_size(self) -> None:
         """Set the window dimensions to 80 percent of the desktop's size."""
@@ -181,8 +169,8 @@ class Renderer:
         Convert map coordinates to screen pixel coordinates.
 
         Args:
-            x: Horizontal map coordiante.
-            y: Vertical map coordiante.
+            x: Horizontal map coordinate.
+            y: Vertical map coordinate.
         
         Returns:
             Rounded screen coordinates as an (x, y) pair.
@@ -230,7 +218,7 @@ class Renderer:
 
     def _draw_movements(self) -> None:
         """
-        Draw the turn number and its movements in header columns
+        Draw the turn number and its movements in header columns.
 
         Replace overflowing messages with a count of hidden movements.
         """
@@ -291,7 +279,7 @@ class Renderer:
         Calculate a header layout using at most three message columns.
 
         Args:
-            messages: Nonempty list of movement messsages to arrange.
+            messages: Nonempty list of movement messages to arrange.
             text_top: Vertical pixel coordinate where message rows begin.
             padding: Space in pixels to reserve below the message rows.
         
@@ -318,7 +306,7 @@ class Renderer:
         
         Returns:
             The original message if it fits, otherwise shortened text ending
-            in "...". Return an empty string if even '..." does not fit.
+            in '...'. Return an empty string if even '...' does not fit.
         """
         if self.font.size(message)[0] <= max_width:
             return message
@@ -343,7 +331,7 @@ class Renderer:
         Draw movement messages down rows before advancing to the next column.
 
         Args:
-            messages: Movement messsages to display.
+            messages: Movement messages to display.
             text_top: Vertical pixel coordinate of the first row.
             rows: Positive number of rows available in each column.
             column_width: Width of each column in pixels.

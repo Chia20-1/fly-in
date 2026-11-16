@@ -19,7 +19,7 @@ class TextOutput:
 
     def print_output(self) -> None:
         """
-        Print each turn's movements followed by the total turn count.
+        Print each turn's movements.
 
         Format each movements as 'D<drone_id>-<destination>', with movements
         separated by spaces. Each turns is separated with line break.

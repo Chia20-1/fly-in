@@ -4,7 +4,6 @@ from map_validation import MapValidation
 from models import Graph
 from router import Router
 from simulation import Simulation
-from renderer import TextOutput, Renderer
 from pydantic import ValidationError
 from error import MapValidationError, MapParserError
 from sys import argv, stderr, exit
@@ -12,19 +11,29 @@ from sys import argv, stderr, exit
 
 def _get_file() -> str:
     """
-    Get the map file path from the command-line arguments.
+    Get the map file path and validate the command-line arguments.
 
     Returns:
         The supplied map file path.
 
     Raises:
-        SystemExit: With status 1 after printing usage to standard error
-            unless exactly one argument is provided.
+        SystemExit: With status 1 after printing an error or usage message
+            if arguments do not match a map path followed by an optional
+            '--visual' flag.
     """
-    if len(argv) != 2:
-        print("Usage example: python3 main.py map_file_path.txt", file=stderr)
+    if len(argv) not in (2, 3):
+        print("Usage example: python3 main.py map.txt", file=stderr)
+        exit(1)
+    if len(argv) == 3 and argv[2] != "--visual":
+        print(f"Error: Unknown option '{argv[2]}'", file=stderr)
+        print("Usage example: python3 main.py map.txt --visual", file=stderr)
         exit(1)
     return argv[1]
+
+
+def is_visual() -> bool:
+    """Return whether the visualization flag was supplied."""
+    return len(argv) == 3 and argv[2] == "--visual"
 
 
 def _get_raw_map(
@@ -37,7 +46,8 @@ def _get_raw_map(
         file_path: Path to the map file.
 
     Returns:
-        Parsed map data, with numeric values still stored as strings.
+        A pair contaiing parsed map data, with numeric values still stored
+        as strings, and a mapping of field names to source line  numbers.
 
     Raises:
         SystemExit: With status 1 after printing a file access, decoding,
@@ -80,6 +90,8 @@ def _get_config(
 
     Args:
         raw_map: Map data returned by the parser.
+        line_numbers: Mapping of field names to source line numbers,
+            used to report where validation errors occurred.
 
     Returns:
         A configuration with converted types, validated fields, and defaults.
@@ -119,18 +131,9 @@ def _validate_config(config: MapConfig) -> None:
         exit(1)
 
 
-# def _print_costs(router: Router) -> None:
-#     costs = router._get_cost()
-
-#     for zone in graph.zones:
-#         if zone.name in costs:
-#             print(f"{zone.name}: {costs[zone.name]}")
-#         else:
-#             print(f"{zone.name}: unreachable")
-
-
 if __name__ == "__main__":
     file_path = _get_file()
+    visual = is_visual()
     raw_map, line_numbers = _get_raw_map(file_path)
     config = _get_config(raw_map, line_numbers)
     _validate_config(config)
@@ -142,6 +145,11 @@ if __name__ == "__main__":
     except ValueError as e:
         print(f"Error: {e}", file=stderr)
         exit(1)
-    text_output = TextOutput(output)
-    renderer = Renderer(graph, output)
-    renderer.run()
+    if visual:
+        from renderer import Renderer
+        renderer = Renderer(graph, output)
+        renderer.run()
+    else:
+        from text_output import TextOutput
+        text_output = TextOutput(output)
+        text_output.print_output()
