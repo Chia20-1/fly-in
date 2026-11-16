@@ -66,6 +66,18 @@ def _get_error_line(
         location: tuple[str | int, ...],
         line_numbers: dict[str, list[int]],
 ) -> int | None:
+    """
+    Find the source line associated with a validation error.
+
+    Args:
+        location: Pydantic error location containing a field name and
+            optionally an entry_index.
+        line_numbers: Mapping of field names to source line numbers.
+    
+    Returns:
+        The corresponding source line number, or None if the location
+        cannot be matched.
+    """
     if not location:
         return None
 

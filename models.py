@@ -12,12 +12,21 @@ class Drone:
     id: int = 1
 
     def __init__(self, start_hub: "Zone") -> None:
+        """
+        Assign a unique identifier and place the drone at the starting hub.
+
+        Args:
+            start_hub: Zone where the drone initially resides.
+        """
         self.id = self.__class__.id
         self._new_id()
         self.current_zone = start_hub
 
     @classmethod
     def _new_id(cls) -> None:
+        """
+        Increment the class counter used to assign the next drone identifier
+        """
         cls.id += 1
 
 
@@ -42,6 +51,18 @@ class Zone:
         color: str | None,
         max_drones: int
     ) -> None:
+        """
+        Initialize a zone with its coordinates and movement properties.
+
+        Args:
+            name: Unique zone name.
+            x: Horizontal map coordinate.
+            y: Vertical map coordinate.
+            zone: Zone category: normal, blocked, restricted, or priority.
+            color: Display color, or None if no color is specified.
+            max_drones: Maximum simultaneous occupancy, ignored for the
+                starting hun and destination hub.
+        """
         self.name: str = name
         self.x: int = x
         self.y: int = y
@@ -65,6 +86,15 @@ class Connection:
         to_zone: str,
         max_link_capacity: int,
     ) -> None:
+        """
+        Initialize a bidirectional connection between two zones.
+
+        Args:
+            from_zone: Name of one endpoint zone.
+            to_zone: Name of the other endpoint zone.
+            max_link_capacity: Maximum number of drones that can traverse
+                the connection simultaneously.
+        """
         self.from_zone: str = from_zone
         self.to_zone: str = to_zone
         self.max_link_capacity: int = max_link_capacity
@@ -88,11 +118,11 @@ class Graph:
         config: MapConfig,
     ) -> None:
         """
-        Create all zones and assign the starting and destination.
+        Build the graph and create drones at it starting hub.
 
-        Returns:
-            Zones in starting hub, destination hub, then intermediate
-            hub order.
+        Args:
+            config: Validated map configuration defining the drone count,
+                zones, and connections.
         """
         self.config = config
         self.nb_drones = self.config.nb_drones

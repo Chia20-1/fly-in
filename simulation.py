@@ -331,15 +331,14 @@ class Simulation:
         """
         Build and apply the complete movement schedule.
 
-        Clear previous schedule and transit records, build a new schedule,
-        then apply its movements one turn at a time. Update drone locations,
-        transit records, and zone occupancy as each turn is applied.
-
+        Replace the stored output with a newly built schedule, then apply
+        each turn to update drone locations, transit records, and occupancy.
         Drone locations are not reset before scheduling.
 
         Returns:
-            A tuple containing the movements grouped by turn and the
-            total number of turns.
+            Movements grouped by simulation turn. Each movement contains a
+            drone identifier and a destination zone or conneciton label. Index
+            zero represents a turn one.
         """
         self.output = self._build_schedule()
 
