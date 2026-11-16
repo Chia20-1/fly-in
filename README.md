@@ -2,6 +2,11 @@
 
 # Description
 
+Fly-in is a Python drone-routing simulator that moves multiple drones through
+connected zones while aiming to minimize the number of turns. It respects zone
+and connection capacities, avoids blocked zones, and accounts for restricted-zone
+travel times. Results can be viewed as terminal output or replayed in an
+interactive Pygame window.
 
 # Instructions 
 
@@ -187,27 +192,56 @@ status.
 
 # Visual Representation
 
-┌──────────────────────────────┐
-│ Turn counter / controls      │ 80 pixels
-├──────────────────────────────┤
-│                              │
-│ Map, with 60 pixels padding  │ 620 pixels
-│ around its edges             │
-│                              │
-├──────────────────────────────┤
-│ Status / legend              │ 100 pixels
-└──────────────────────────────┘
-          1200 pixels
+Visualization mode uses Pygame to replay the completed simulation. It helps
+users inspect route choices, zone occupancy, and movements one turn at a time.
 
-```Python
-self.width = 1200
-self.height = 800
-self.margin = 60
-self.radius = 14
+## Window layout
 
-self.header_height = 80
-self.footer_height = 100
-```
+The window is divided into three areas:
+
+- **Header:** shows the current turn, total turn count, and movement messages.
+- **Map:** shows zones as circles and bidirectional connections as gray lines.
+- **Footer:** contains the **Previous** and **Next** navigation buttons.
+
+Occupied zones are filled with their display color. Unoccupied zones have a
+white interior and a colored outline. Zones without a recognized color use
+gray as a fallback. These visual cues indicate occupancy, not the number or
+identity of drones sharing a zone.
+
+For restricted-zone travel, movement messages show the connection label during
+transit and the destination zone on arrival. Drones in transit are not currently
+drawn as markers on connections.
+
+## Sizing and readability
+
+The layout is calculated from the desktop size when the visualization starts:
+
+- The window uses 80% of the first desktop's width and height.
+- The header uses approximately 28% of the window height, and the footer uses
+  approximately 12.5%.
+- The map is scaled uniformly and centered in the remaining drawing area,
+  preserving the proportions of its coordinates.
+- Margins, zone circles, buttons, and font size are calculated relative to the
+  window dimensions, with minimum sizes for circles and text.
+- Movement messages use up to three columns. Long messages are shortened with
+  `...`, and overflow is summarized as `+ N more movements` when space permits.
+
+The window size is chosen at startup. The current implementation does not
+support dragging the window borders to resize it or recalculating the layout
+when the desktop resolution changes during playback. Very small displays may
+leave insufficient space for movement details.
+
+## Playback controls
+
+- **Next:** advance by one turn.
+- **Previous:** return to the preceding turn.
+- **Turn 0:** show the initial state, with all drones at the starting hub.
+- **Final turn:** show the state after all drones have reached the destination.
+- **Close the window:** end visualization and release Pygame resources.
+
+Navigation cannot move before turn zero or beyond the final turn. Playback is
+manual; the display refreshes at up to 60 frames per second, but simulation
+turns advance only when a navigation button is clicked.
 
 # Resources
 - **Dijkstra Algorithm:** Hand-drawn practice for finding the shortest path across vertices — [YouTube](https://www.youtube.com/watch?v=eFZCPlZCyIM)
