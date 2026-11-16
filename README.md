@@ -94,52 +94,82 @@ make fclean
  
 
 # Architecture
-```
-root/
+
+## Project structure
+
+```text
+fly-in/
 |-- .gitignore
 |-- Makefile
 |-- README.md
-|-- modules
-	|-- connection.py
-	|-- drone.py
-	|-- graph.py
-	|-- zone.py
-|-- main.py
-|-- parser.py
-|-- renderer.py
-|-- simulation.py
+|-- main.py            # Command-line arguments and program orchestration
+|-- map_parser.py      # Map syntax, declaration order, and source line numbers
+|-- map_config.py      # Pydantic models and numeric field validation
+|-- map_validation.py  # Zone uniqueness and connection consistency
+|-- models.py          # Drone, Zone, Connection, and Graph classes
+|-- router.py          # Dijkstra-based route finding
+|-- simulation.py      # Route scheduling and turn-by-turn state updates
+|-- text_output.py     # Terminal movement output
+|-- renderer.py        # Interactive Pygame visualization
+|-- error.py           # Custom parsing and map-validation exceptions
+|-- maps/              # Easy, medium, hard, and challenger maps
 ```
-*Project's Folder & File Structure*
+
+## Execution flow
+
+`main.py` coordinates the following stages:
+
+```text
+Command-line arguments
+        |
+        v
+MapParser.parse()
+    Read declarations and check syntax and required counts.
+    Parse zones and connections in source-line order.
+    Require connection endpoints to be declared first.
+    Preserve source line numbers for error reporting.
+        |
+        v
+MapConfig.model_validate()
+    Validate integer inputs, zone types, and positive capacities.
+    Convert numeric strings and apply default values.
+        |
+        v
+MapValidation.validate()
+    Reject duplicate zone names, unknown connection endpoints,
+    and duplicate bidirectional connections.
+        |
+        v
+Graph
+    Create zones, connections, and drones at the starting hub.
+    Build zone and adjacency lookup tables.
+        |
+        v
+Simulation.run_simulation()
+    Router: find the best route and candidate alternatives.
+    Scheduler: reserve zone and connection capacity for each drone.
+    Simulation: apply the resulting schedule one turn at a time.
+        |
+        v
+SimulationOutput
+    Movement records grouped by turn.
+        |
+        +-- Default ------> TextOutput.print_output()
+        |                   Print one movement line per turn.
+        |
+        +-- --visual -----> Renderer.run()
+                            Replay turns with Previous/Next controls.
 ```
-main.py
-   |
-   v
-MapParser
-   |
-   |-- 1. Read file
-   |-- 2. Parse lines into raw dictionaries
-   |-- 3. Check syntax (missing :, unknown key)
-   |-- 4. Check structural completeness:
-   |       - Exactly one start_hub?
-   |       - Exactly one end_hub?
-   |       - Required hubs/connections present?
-   |
-   |-- ERROR? --> Raise MapParserError
-   |                  |
-   |                  v
-   |              main.py catches error
-   |              Exit program
-   |
-   v
-Pydantic
-   |
-   |-- Convert values to types
-   |-- Validate field constraints
-   |-- Apply default values
-   |
-   v
-Build simulation graph
-```
+
+The simulation finishes before either output mode begins. The renderer replays
+its movement records rather than recalculating routes or running a second
+simulation.
+
+Parsing, configuration, and consistency errors are reported to standard error
+before simulation begins. Source line numbers are included where available.
+An unreachable destination is reported as a routing error, and Pygame runtime
+errors are handled in visualization mode. Failed execution exits with a nonzero
+status.
 
 # Map Config
 | Entity | Attributes |
