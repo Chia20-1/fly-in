@@ -1,5 +1,35 @@
-from pydantic import BaseModel, Field
-from typing import Literal
+from pydantic import BaseModel, BeforeValidator, Field
+from typing import Annotated, Literal
+
+
+def _validate_integer(value: object) -> int:
+    """
+    Accept an integer or a string containing an integer.
+
+    Args:
+        value: Raw value to validate before Pydantic conversion.
+
+    Returns:
+        The validated integer.
+
+    Raises:
+        ValueError: If the value does not represent an integer.
+    """
+    if isinstance(value, bool):
+        raise ValueError("Expected an integer, not a boolean")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        digits = value
+        if digits.startswith(("+", "-")):
+            digits = digits[1:]
+        if digits.isascii() and digits.isdecimal():
+            return int(value)
+    raise ValueError("Expected an integer without a decimal point"
+                     " or exponent.")
+
+
+IntegerValue = Annotated[int, BeforeValidator(_validate_integer)]
 
 
 class ZoneConfig(BaseModel):
@@ -17,11 +47,11 @@ class ZoneConfig(BaseModel):
             Must be positive. Defaults to 1.
     """
     name: str
-    x: int
-    y: int
+    x: IntegerValue
+    y: IntegerValue
     zone: Literal["normal", "blocked", "restricted", "priority"] = "normal"
     color: str | None = None
-    max_drones: int = Field(default=1, gt=0)
+    max_drones: IntegerValue = Field(default=1, gt=0)
 
 
 class ConnectionConfig(BaseModel):
@@ -36,7 +66,7 @@ class ConnectionConfig(BaseModel):
     """
     from_zone: str
     to_zone: str
-    max_link_capacity: int = Field(default=1, gt=0)
+    max_link_capacity: IntegerValue = Field(default=1, gt=0)
 
 
 class MapConfig(BaseModel):
@@ -50,7 +80,7 @@ class MapConfig(BaseModel):
         hub: Intermediate zones.
         connection: Connection between zones.
     """
-    nb_drones: int = Field(gt=0)
+    nb_drones: IntegerValue = Field(gt=0)
     start_hub: ZoneConfig
     end_hub: ZoneConfig
     hub: list[ZoneConfig]

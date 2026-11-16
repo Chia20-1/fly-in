@@ -123,23 +123,26 @@ def _get_config(
         exit(1)
 
 
-def _validate_config(config: MapConfig) -> None:
+def _validate_config(
+        config: MapConfig,
+        line_numbers: dict[str, list[int]]
+) -> None:
     """
     Check zone uniqueness and connection consistency.
 
     Args:
         config: Map configuration with validated field values.
+        line_numbers: Source line numbers grouped by declaration key.
 
     Raises:
-        SystemExit: With status 1 after printing a validation error to
-            standard error if zone names repeat, connection endpoints
-            are unknown, or connections are duplicated.
+        SystemExit: With status 1 after printing a validation error and
+            its source line to standard error.
     """
     try:
-        validation = MapValidation(config)
+        validation = MapValidation(config, line_numbers)
         validation.validate()
     except MapValidationError as error:
-        print(f"Error: {error}", file=stderr)
+        print(f"Error {error}", file=stderr)
         exit(1)
 
 
@@ -148,7 +151,7 @@ if __name__ == "__main__":
     visual = is_visual()
     raw_map, line_numbers = _get_raw_map(file_path)
     config = _get_config(raw_map, line_numbers)
-    _validate_config(config)
+    _validate_config(config, line_numbers)
     graph = Graph(config)
     try:
         router = Router(graph)
