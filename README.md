@@ -1,4 +1,4 @@
-*This project has been created as part of the curriculum by chilim*
+*This project has been created as part of the 42 curriculum by chilim*
 
 # Description
 
@@ -95,7 +95,7 @@ Remove generated caches and the virtual environment:
 make fclean
 ```
 
-> After `make fclean`, run `make install` before executing the program again.
+After `make fclean`, run `make install` before executing the program again.
  
 
 # Architecture
@@ -188,7 +188,45 @@ status.
 
 ## Algorithm Choice
 
+The program combines **Dijkstra's algorithm** for route finding with a
+**greedy scheduler** for distributing drones across routes.
+
+Dijkstra is suitable because travel costs are positive and can differ:
+
+- Entering a normal or priority zone costs **1 turn**.
+- Entering a restricted zone costs **2 turns**.
+- Blocked zones are excluded.
+- When routes have the same cost, the route with more priority zones is
+  preferred.
+
+This approach aims to reduce the total number of turns. The **greedy scheduler**
+is deterministic: it assigns plans in drone order without revising earlier
+assignments.
+
+A minimum-cost route alone may become congested, so the scheduler
+also considers alternative routes and available capacity.
+
 ## Implementation Strategy
+
+1. **Build the graph (`models.py`).** Store zones in a name lookup table and
+   connections in an adjacency list. Each connection is shared by both
+   directions, so its capacity applies to traffic in either direction.
+2. **Find candidate routes (`router.py`, `simulation.py`).** Use `heapq` as
+   Dijkstra's priority queue and reconstruct the best route using predecessor
+   records. Then exclude each connection of that route in turn and search
+   again from the start hub. Keep only unique alternatives that reach the end.
+3. **Schedule drones (`simulation.py`).** Process drones one at a time. For
+   each candidate route, start with no departure delay and increase the delay
+   until the entire route fits existing reservations. Choose the plan with
+   the earliest final arrival; ties keep the first candidate.
+4. **Reserve capacity.** Track zone arrivals and connection crossings in
+   dictionaries keyed by turn and resource. Start and end hubs have unlimited
+   zone capacity. For restricted-zone travel, reserve the connection on the
+   turn before arrival. Waiting happens at the start hub, not midway through
+   a route.
+5. **Apply and record movements.** Once all plans are fixed, apply them turn
+   by turn, updating drone locations, transit records, and zone occupancy.
+   The same movement records are used for terminal output and visual replay.
 
 # Visual Representation
 
@@ -248,3 +286,11 @@ turns advance only when a navigation button is clicked.
 - **Dijkstra Alrgorithm:** Concept explaination and understanding — [Youtube](https://www.youtube.com/watch?v=bZkzH5x0SKU)
 - **pygame official** - [pygame.org](https://www.pygame.org/docs/tut/newbieguide.html)
 - **pygame introduction** - [GeeksforGeeks](https://www.geeksforgeeks.org/python/pygame-tutorial/)
+
+## AI Usage
+
+AI was used as a writing and learning assistant. It helped with:
+- Improving the wording and grammar of the README and documentation.
+- Refining PEP 257 docstrings.
+
+All AI-generated content was reviewed, understood, tested where applicable, and modified before being incorporated into the project.
