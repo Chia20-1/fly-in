@@ -1,11 +1,27 @@
+from typing import NamedTuple, TypedDict
+
 from models import Connection, Drone, Graph, Zone
 from router import Route, Router
 
-# Each entry: arrival turn, destination, connection used
-Plan = list[tuple[int, Zone, Connection]]
+
 Movement = tuple[int, str]
 Turn = list[Movement]
 SimulationOutput = list[Turn]
+
+
+class PlannedArrival(NamedTuple):
+    arrival_turn: int
+    destination: Zone
+    connection: Connection
+
+
+Plan = list[PlannedArrival]
+
+
+class TurnSnapshot(TypedDict):
+    positions: dict[int, str]
+    zone_usage: dict[Zone, int]
+    connection_usage: dict[Connection, int]
 
 
 class Scheduler:
@@ -63,7 +79,7 @@ class Scheduler:
                 raise ValueError("A route cannot enter a blocked zone")
 
             turn += 2 if destination.zone == "restricted" else 1
-            plan.append((turn, destination, connection))
+            plan.append(PlannedArrival(turn, destination, connection))
         return plan
 
     def _has_capacity_for_plan(self, plan: Plan) -> bool:
@@ -161,7 +177,9 @@ class Scheduler:
 
         plan = min(
             plans,
-            key=lambda candidate: candidate[-1][0] if candidate else 0,
+            key=lambda candidate: (
+                candidate[-1].arrival_turn if candidate else 0
+            ),
         )
 
         for arrival_turn, destination, connection in plan:
@@ -217,13 +235,15 @@ class Simulation:
         output: Scheduled movements grouped by turn. Each movement
             contains a drone ID and a zone name or connection label.
             Index 0 represents turn 1.
+        usage_history: End-of-turn positions, zone counts, and crossings.
+            Indices match output; no initial snapshot is recorded.
     """
     def __init__(self, graph: Graph, router: Router) -> None:
         """
         Initialize a simulation with a graph and router.
 
-        Index drones by ID and create empty occupancy, transit, and
-        movement records. Drone locations are left unchanged.
+        Index drones by ID and count them at their current zones.
+        Transit, movement, and usage history records start empty.
 
         Args:
             graph: Map containing the zones, connections, hubs and drones.
@@ -234,10 +254,14 @@ class Simulation:
         self._drones_by_id: dict[int, Drone] = {
             drone.id: drone for drone in graph.drones
         }
-        self.occupancy: dict[Zone, int] = {}
+        self._positions: dict[int, str] = {}
         self.in_transit: dict[int, str] = {}
+        self.occupancy: dict[Zone, int] = {zone: 0 for zone in graph.zones}
+        for drone in graph.drones:
+            self.occupancy[drone.current_zone] += 1
+            self._positions[drone.id] = drone.current_zone.name
         self.output: SimulationOutput = []
-        self._update_occupancy()
+        self.usage_history: list[TurnSnapshot] = []
 
     def _get_candidate_routes(self) -> list[Route]:
         """
@@ -264,7 +288,7 @@ class Simulation:
 
         return routes
 
-    def _build_schedule(self) -> SimulationOutput:
+    def _build_schedule(self) -> Scheduler:
         """
         Build a capacity-aware movement schedule for all drones.
 
@@ -274,7 +298,7 @@ class Simulation:
         This method does not update drone locations.
 
         Returns:
-            Scheduled movements grouped by turn. Index 0 represents turn 1.
+            The scheduler containing the movements and capacity reservations.
         """
         scheduler = Scheduler(self.graph)
         routes = self._get_candidate_routes()
@@ -282,9 +306,13 @@ class Simulation:
         for drone in self.graph.drones:
             scheduler.schedule_drone(drone, routes)
 
-        return scheduler.output
+        return scheduler
 
-    def _apply_turn(self, turn: Turn) -> None:
+    def _apply_turn(
+        self,
+        turn: Turn,
+        crossings: dict[Connection, int],
+    ) -> TurnSnapshot:
         """
         Apply one turn of scheduled movements and refresh zone occupancy.
 
@@ -296,36 +324,34 @@ class Simulation:
         Args:
             turn: Movements containing a drone ID and a zone name or
                 connection label.
+            crossings: Number of crossings per used connection this turn.
+
+        Returns:
+            End-of-turn drone positions, zone occupancy, and crossing counts.
 
         Raises:
             KeyError: If a movement references an unknown drone ID.
         """
         for drone_id, location in turn:
             drone = self._drones_by_id[drone_id]
-            destination = self.graph.zone_lookup.get(location)
+            if drone_id not in self.in_transit:
+                self.occupancy[drone.current_zone] -= 1
 
+            destination = self.graph.zone_lookup.get(location)
             if destination is None:
                 self.in_transit[drone_id] = location
             else:
-                drone.current_zone = destination
                 self.in_transit.pop(drone_id, None)
+                drone.current_zone = destination
+                self.occupancy[destination] += 1
 
-        self._update_occupancy()
+            self._positions[drone_id] = location
 
-    def _update_occupancy(self) -> None:
-        """
-        Recalculate the number of drones currently in each zone.
-
-        Reset all zone counts, then count each drone at its current zone
-        unless the drone is marked as in transit.
-        """
-        self.occupancy = {
-            zone: 0 for zone in self.graph.zones
+        return {
+            "positions": self._positions.copy(),
+            "zone_usage": self.occupancy.copy(),
+            "connection_usage": crossings,
         }
-
-        for drone in self.graph.drones:
-            if drone.id not in self.in_transit:
-                self.occupancy[drone.current_zone] += 1
 
     def run_simulation(self) -> SimulationOutput:
         """
@@ -333,16 +359,23 @@ class Simulation:
 
         Replace the stored output with a newly built schedule, then apply
         each turn to update drone locations, transit records, and occupancy.
-        Drone locations are not reset before scheduling.
+        Intended for one run per instance; drone locations are not reset.
 
         Returns:
             Movements grouped by simulation turn. Each movement contains a
-            drone identifier and a destination zone or conneciton label. Index
-            zero represents a turn one.
+            drone identifier and a zone or connection label. Index 0 is turn 1.
         """
-        self.output = self._build_schedule()
+        scheduler = self._build_schedule()
+        self.output = scheduler.output
 
-        for turn in self.output:
-            self._apply_turn(turn)
+        crossings_by_turn: dict[int, dict[Connection, int]] = {}
+        for key, count in scheduler.link_reservation.items():
+            crossing_turn, link = key
+            crossings_by_turn.setdefault(crossing_turn, {})[link] = count
+
+        for number, turn in enumerate(self.output, start=1):
+            crossings = crossings_by_turn.get(number, {})
+            snapshot = self._apply_turn(turn, crossings)
+            self.usage_history.append(snapshot)
 
         return self.output
