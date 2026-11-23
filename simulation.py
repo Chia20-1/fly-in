@@ -1,5 +1,4 @@
 from typing import NamedTuple, TypedDict
-
 from models import Connection, Drone, Graph, Zone
 from router import Route, Router
 
