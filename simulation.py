@@ -20,8 +20,6 @@ Plan = list[PlannedArrival]
 
 class TurnSnapshot(TypedDict):
     positions: dict[int, str]
-    zone_usage: dict[Zone, int]
-    connection_usage: dict[Connection, int]
 
 
 class Scheduler:
@@ -238,8 +236,8 @@ class Simulation:
         output: Scheduled movements grouped by turn. Each movement
             contains a drone ID and a zone name or connection label.
             Index 0 represents turn 1.
-        usage_history: End-of-turn positions, zone counts, and crossings.
-            Indices match output; no initial snapshot is recorded.
+        usage_history: End-of-turn positions. Indices match output;
+            no initial snapshot is recorded.
     """
     def __init__(self, graph: Graph, router: Router) -> None:
         """
@@ -314,7 +312,6 @@ class Simulation:
     def _apply_turn(
         self,
         turn: Turn,
-        crossings: dict[Connection, int],
     ) -> TurnSnapshot:
         """
         Apply one turn of scheduled movements and refresh zone occupancy.
@@ -327,10 +324,9 @@ class Simulation:
         Args:
             turn: Movements containing a drone ID and a zone name or
                 connection label.
-            crossings: Number of crossings per used connection this turn.
 
         Returns:
-            End-of-turn drone positions, zone occupancy, and crossing counts.
+            End-of-turn drone positions.
 
         Raises:
             KeyError: If a movement references an unknown drone ID.
@@ -350,11 +346,7 @@ class Simulation:
 
             self._positions[drone_id] = location
 
-        return {
-            "positions": self._positions.copy(),
-            "zone_usage": self.occupancy.copy(),
-            "connection_usage": crossings,
-        }
+        return {"positions": self._positions.copy()}
 
     def run_simulation(self) -> SimulationOutput:
         """
@@ -374,14 +366,8 @@ class Simulation:
         scheduler = self._build_schedule()
         self.output = scheduler.output
 
-        crossings_by_turn: dict[int, dict[Connection, int]] = {}
-        for key, count in scheduler.link_reservation.items():
-            crossing_turn, link = key
-            crossings_by_turn.setdefault(crossing_turn, {})[link] = count
-
-        for number, turn in enumerate(self.output, start=1):
-            crossings = crossings_by_turn.get(number, {})
-            snapshot = self._apply_turn(turn, crossings)
+        for turn in self.output:
+            snapshot = self._apply_turn(turn)
             self.usage_history.append(snapshot)
 
         return self.output
