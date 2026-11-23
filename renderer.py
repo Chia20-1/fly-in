@@ -1,6 +1,7 @@
 from simulation import SimulationOutput
 from models import Graph
 import pygame
+import math
 
 
 COLORS = {
@@ -19,6 +20,7 @@ COLORS = {
     "brown": "#A52A2A",
     "lime": "#b9ff66",
     "gold": "#FFD700",
+    "charcoal": "#202020",
 }
 
 
@@ -54,8 +56,12 @@ class Renderer:
         """Calculate layout dimensions from the window size."""
         base_size = min(self.width, self.height)
         self.margin = round(base_size * 0.055)
-        self.radius = max(1, round(base_size * 0.0175))
-        self.header_height = round(self.height * 0.28)
+
+        self.is_dense_map = len(self.graph.zones) > 31
+        zone_ratio = 0.06 if self.is_dense_map else 0.08
+
+        self.zone_size = max(8, round(base_size * zone_ratio))
+        self.header_height = round(self.height * 0.07)
         self.footer_height = round(self.height * 0.125)
         self.available_width = self.width - (2 * self.margin)
         self.available_height = (
@@ -68,8 +74,8 @@ class Renderer:
     def _init_window_size(self) -> None:
         """Set the window dimensions to 80 percent of the desktop's size."""
         desktop_width, desktop_height = pygame.display.get_desktop_sizes()[0]
-        self.width = int(desktop_width * 0.8)
-        self.height = int(desktop_height * 0.8)
+        self.width = int(desktop_width * 0.96)
+        self.height = int(desktop_height * 0.9)
 
     def _init_button(self) -> None:
         """Create previous and next button rectangles in the footer."""
@@ -151,7 +157,8 @@ class Renderer:
             scales.append(self.available_width / span_x)
         if span_y > 0:
             scales.append(self.available_height / span_y)
-        self.scale = min(scales) if scales else 1.0
+        zoom = 0.9
+        self.scale = (min(scales) if scales else 1.0) * zoom
         self.offset_x = (
             self.margin
             + ((self.available_width - span_x * self.scale) / 2)
@@ -181,7 +188,7 @@ class Renderer:
 
     def _draw(self) -> None:
         """
-        Draw connections, zones, movement messages, and navigation buttons.
+        Draw connections, zones, the turn counter, and navigation buttons.
         """
         self.screen.fill(COLORS["white"])
         for connection in self.graph.connections:
@@ -193,10 +200,9 @@ class Renderer:
                 COLORS["gray"],
                 self._to_screen(start.x, start.y),
                 self._to_screen(end.x, end.y),
-                2,
+                1,
             )
 
-        occupied_locations = set(self.positions.values())
         for zone in self.graph.zones:
             color = (
                 COLORS.get(zone.color, COLORS["gray"])
@@ -204,150 +210,34 @@ class Renderer:
                 else COLORS["gray"]
             )
             position = self._to_screen(zone.x, zone.y)
-            is_occupied = zone.name in occupied_locations
-            fill_color = color if is_occupied else COLORS["white"]
-            pygame.draw.circle(
-                self.screen, fill_color, position, self.radius
+            zone_rect = pygame.Rect(
+                0, 0, self.zone_size, self.zone_size
             )
-            pygame.draw.circle(
-                self.screen, color, position, self.radius, width=6
+            zone_rect.center = position
+            pygame.draw.rect(
+                self.screen, COLORS["white"], zone_rect
             )
-
-        self._draw_movements()
+            pygame.draw.rect(
+                self.screen, color, zone_rect, width=6
+            )
+        self._draw_drones()
+        self._draw_zone_names()
+        self._draw_turn_counter()
         self._draw_buttons()
 
-    def _draw_movements(self) -> None:
+    def _draw_turn_counter(self) -> None:
         """
-        Draw the turn number and its movements in header columns.
-
-        Replace overflowing messages with a count of hidden movements.
+        Draw the current and total turn counts centered in the header.
         """
-        padding = max(4, round(self.height * 0.01))
-        row_height = self.font.get_linesize()
-        heading = self.font.render(
+        text = self.font.render(
             f"Turn {self.current_turn} / {len(self.output)}",
             True,
             COLORS["black"],
         )
-        self.screen.blit(heading, (self.margin, padding))
-
-        messages = self._get_movement_messages()
-        if not messages:
-            return
-
-        # Calculate how many rows fit beneath the heading.
-        text_top = padding + row_height + padding
-        rows, columns, column_width = self._get_movement_layout(
-            messages, text_top, padding
+        text_rect = text.get_rect(
+            center=(self.width // 2, self.header_height // 2)
         )
-        if rows < 1:
-            return
-
-        capacity = rows * columns
-        if len(messages) > capacity:
-            hidden_count = len(messages) - capacity + 1
-            messages = messages[:capacity - 1]
-            messages.append(f"+ {hidden_count} more movements")
-
-        self._draw_movement_messages(
-            messages, text_top, rows, column_width
-        )
-
-    def _get_movement_messages(self) -> list[str]:
-        """
-        Build movement messages for the current turn.
-
-        Returns:
-            One message per movement, or an empty list for turn zero.
-        """
-        if self.current_turn == 0:
-            return []
-
-        return [
-            f"Drone {drone_id} moved to {destination}"
-            for drone_id, destination
-            in self.output[self.current_turn - 1]
-        ]
-
-    def _get_movement_layout(
-        self,
-        messages: list[str],
-        text_top: int,
-        padding: int,
-    ) -> tuple[int, int, int]:
-        """
-        Calculate a header layout using at most three message columns.
-
-        Args:
-            messages: Nonempty list of movement messages to arrange.
-            text_top: Vertical pixel coordinate where message rows begin.
-            padding: Space in pixels to reserve below the message rows.
-
-        Returns:
-            A tuple containing the row count, column count, and column width
-            in pixels. Return three zeros if no rows fit.
-        """
-        available_height = self.header_height - text_top - padding
-        rows = max(0, available_height // self.font.get_linesize())
-        if rows < 1:
-            return 0, 0, 0
-        needed_columns = (len(messages) + rows - 1) // rows
-        columns = min(3, needed_columns)
-        column_width = self.available_width // columns
-        return rows, columns, column_width
-
-    def _fit_text(self, message: str, max_width: int) -> str:
-        """
-        Shorten a message to fit withint a pixel width.
-
-        Args:
-            message: Text to measure using the current font.
-            max_width: Maximum permitted text width in pixels.
-
-        Returns:
-            The original message if it fits, otherwise shortened text ending
-            in '...'. Return an empty string if even '...' does not fit.
-        """
-        if self.font.size(message)[0] <= max_width:
-            return message
-
-        suffix = "..."
-        if self.font.size(suffix)[0] > max_width:
-            return ""
-
-        while message and self.font.size(message + suffix)[0] > max_width:
-            message = message[:-1]
-
-        return message + suffix
-
-    def _draw_movement_messages(
-        self,
-        messages: list[str],
-        text_top: int,
-        rows: int,
-        column_width: int,
-    ) -> None:
-        """
-        Draw movement messages down rows before advancing to the next column.
-
-        Args:
-            messages: Movement messages to display.
-            text_top: Vertical pixel coordinate of the first row.
-            rows: Positive number of rows available in each column.
-            column_width: Width of each column in pixels.
-        """
-        row_height = self.font.get_linesize()
-        gap = max(8, round(self.width * 0.02))
-        text_width = max(1, column_width - gap)
-
-        for index, message in enumerate(messages):
-            column = index // rows
-            row = index % rows
-            x = self.margin + column * column_width
-            y = text_top + row * row_height
-            message = self._fit_text(message, text_width)
-            text = self.font.render(message, True, COLORS["black"])
-            self.screen.blit(text, (x, y))
+        self.screen.blit(text, text_rect)
 
     def _draw_buttons(self) -> None:
         """Draw the previous and next turn controls in the footer."""
@@ -359,6 +249,60 @@ class Renderer:
             text = self.font.render(label, True, COLORS["white"])
             text_rect = text.get_rect(center=rect.center)
             self.screen.blit(text, text_rect)
+
+    def _draw_drones(self) -> None:
+        for zone in self.graph.zones:
+            count = sum(
+                location == zone.name
+                for location in self.positions.values()
+            )
+            if count == 0:
+                continue
+
+            columns = math.ceil(math.sqrt(count))
+            rows = math.ceil(count / columns)
+
+            available_size = self.zone_size * 0.8
+            cell_size = available_size / columns
+            radius = max(1, int(cell_size * 0.3))
+
+            center_x, center_y = self._to_screen(zone.x, zone.y)
+            left = center_x - columns * cell_size / 2
+            top = center_y - rows * cell_size / 2
+
+            for index in range(count):
+                column = index % columns
+                row = index // columns
+
+                position = (
+                    round(left + (column + 0.5) * cell_size),
+                    round(top + (row + 0.5) * cell_size),
+                )
+
+                pygame.draw.circle(self.screen, "#202020", position, radius)
+
+    def _draw_zone_names(self) -> None:
+        if self.is_dense_map:
+            return
+
+        font = pygame.font.Font(
+            None,
+            max(12, round(self.height * 0.018))
+        )
+
+        for zone in self.graph.zones:
+            x, y = self._to_screen(zone.x, zone.y)
+            y += self.zone_size // 2 + 4
+
+            for word in zone.name.split("_"):
+                text = font.render(
+                    word, True, COLORS["black"]
+                )
+                rect = text.get_rect(
+                    midtop=(x, y)
+                )
+                self.screen.blit(text, rect)
+                y += font.get_linesize()
 
     def run(self) -> None:
         """
