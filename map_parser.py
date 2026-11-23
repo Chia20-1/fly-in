@@ -8,6 +8,8 @@ class MapParser:
     Attributes:
         VALID_KEYS: Supported declaration keys.
         file_path: Path to the map file.
+        line_numbers: Source line numbers grouped by declaration key,
+            populated after parsing.
     """
     VALID_KEYS = frozenset({
         "nb_drones", "start_hub", "end_hub", "hub", "connection"
@@ -18,7 +20,7 @@ class MapParser:
         Store the map file path without reading the file.
 
         Args:
-            file_path: Path to the map file
+            file_path: Path to the map file.
         """
         self.file_path = file_path
         self.line_numbers: dict[str, list[int]] = {}
@@ -37,6 +39,7 @@ class MapParser:
             MapParserError: If file access fails, declaration syntax or
                 structure is invalid, or a connection references a zone
                 not yet declared.
+            UnicodeDecodeError: If the file contains invalid UTF-8 data.
         """
         raw_map = self._parse_raw()
         self.line_numbers = {
@@ -313,8 +316,8 @@ class MapParser:
         Parse optional bracketed metadata into key-value pairs.
 
         Args:
-            metadata: Bracketed, space-separated key=value pairs, or an
-                empty value when metadata is present.
+            metadata: Bracketed, space-separated key=value pairs, an
+                empty string or None when metadata is absent.
 
         Returns:
             Parsed attributes, or an empty dictionary when metadata

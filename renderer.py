@@ -28,13 +28,14 @@ class Renderer:
     """
     Display simulation turns in an interactive Pygame window.
 
-    Show the map, occupied zones, and movement messages. Provide buttons for
+    Show the map, drone positions, and turn counter. Provide buttons for
     navigating between turns.
 
     Attributes:
         graph: Map containing zones, connections, and drones.
         output: Movement records grouped by simulation turn.
     """
+
     def __init__(
             self,
             graph: Graph,
@@ -96,7 +97,7 @@ class Renderer:
         )
 
     def _init_window_size(self) -> None:
-        """Set the window dimensions to 80 percent of the desktop's size."""
+        """Set window width and height to 96% and 90% of the desktop size."""
         desktop_width, desktop_height = pygame.display.get_desktop_sizes()[0]
         self.width = int(desktop_width * 0.96)
         self.height = int(desktop_height * 0.9)
@@ -137,8 +138,9 @@ class Renderer:
 
     def _update_positions(self) -> None:
         """
-        Reconstruct drone positions at the current turn by replaying
-        completed movements from the starting hub.
+        Reconstruct drone positions at the current turn.
+
+        Replay completed movements from the starting hub.
         """
         self.positions: dict[int, str] = {
             drone.id: self.graph.start_hub.name
@@ -209,9 +211,7 @@ class Renderer:
         return round(screen_x), round(screen_y)
 
     def _draw(self) -> None:
-        """
-        Draw connections, zones, the turn counter, and navigation buttons.
-        """
+        """Draw connections, zones, drones, labels, and navigation controls."""
         self.screen.fill(COLORS["white"])
         for connection in self.graph.connections:
             start = self.graph.zone_lookup[connection.from_zone]
@@ -247,32 +247,8 @@ class Renderer:
         self._draw_turn_counter()
         self._draw_buttons()
 
-    def _draw_turn_counter(self) -> None:
-        """
-        Draw the current and total turn counts centered in the header.
-        """
-        text = self.font.render(
-            f"Turn {self.current_turn} / {len(self.output)}",
-            True,
-            COLORS["black"],
-        )
-        text_rect = text.get_rect(
-            center=(self.width // 2, self.header_height // 2)
-        )
-        self.screen.blit(text, text_rect)
-
-    def _draw_buttons(self) -> None:
-        """Draw the previous and next turn controls in the footer."""
-        for rect, label in (
-            (self.previous_button, "Previous"),
-            (self.next_button, "Next")
-        ):
-            pygame.draw.rect(self.screen, COLORS["gray"], rect)
-            text = self.font.render(label, True, COLORS["white"])
-            text_rect = text.get_rect(center=rect.center)
-            self.screen.blit(text, text_rect)
-
     def _draw_drones(self) -> None:
+        """Draw drone identifiers in a grid within each occupied zone."""
         for zone in self.graph.zones:
             drone_ids = [
                 drone_id
@@ -318,6 +294,7 @@ class Renderer:
                 self.screen.blit(text, rect)
 
     def _draw_zone_names(self) -> None:
+        """Draw zone names below their zones unless the map is dense."""
         if self.is_dense_map:
             return
 
@@ -336,6 +313,29 @@ class Renderer:
                 )
                 self.screen.blit(text, rect)
                 y += font.get_linesize()
+
+    def _draw_turn_counter(self) -> None:
+        """Draw the current and total turn counts centered in the header."""
+        text = self.font.render(
+            f"Turn {self.current_turn} / {len(self.output)}",
+            True,
+            COLORS["black"],
+        )
+        text_rect = text.get_rect(
+            center=(self.width // 2, self.header_height // 2)
+        )
+        self.screen.blit(text, text_rect)
+
+    def _draw_buttons(self) -> None:
+        """Draw the previous and next turn controls in the footer."""
+        for rect, label in (
+            (self.previous_button, "Previous"),
+            (self.next_button, "Next")
+        ):
+            pygame.draw.rect(self.screen, COLORS["gray"], rect)
+            text = self.font.render(label, True, COLORS["white"])
+            text_rect = text.get_rect(center=rect.center)
+            self.screen.blit(text, text_rect)
 
     def run(self) -> None:
         """

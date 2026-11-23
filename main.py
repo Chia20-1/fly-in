@@ -46,8 +46,8 @@ def _get_raw_map(
         file_path: Path to the map file.
 
     Returns:
-        A pair contaiing parsed map data, with numeric values still stored
-        as strings, and a mapping of field names to source line  numbers.
+        A pair containing parsed map data, with numeric values still stored
+        as strings, and a mapping of field names to source line numbers.
 
     Raises:
         SystemExit: With status 1 after printing a file access, decoding,

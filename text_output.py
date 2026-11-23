@@ -13,7 +13,7 @@ class TextOutput:
         Initialize the text output with simulaiton results.
 
         Args:
-            output: Turns containing(drone_id, destination) movement pairs.
+            output: Turns containing (drone_id, destination) movement pairs.
         """
         self.output = output
 

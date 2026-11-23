@@ -79,7 +79,7 @@ class Router:
             start: Name of the zone from which to search.
             dest: Name of the destination zone.
             excluded_connection: Existing graph connection to skip.
-             If None, exclude no connection.
+            If None, exclude no connection.
 
         Returns:
             Destination-zone and connection pairs in travel order, excluding

@@ -4,7 +4,7 @@ from error import MapValidationError
 
 class MapValidation():
     """
-    Check zone names and connections for consistency
+    Check zone names and connections for consistency.
 
     Attributes:
         config: Map configuration to validate.
@@ -22,7 +22,7 @@ class MapValidation():
             config: Map configuration to validate
             line_numbers: Source line numbers corresponding to the
                 configuration's declarations, in per-key source order.
-           """
+        """
         self.config = config
         self.line_numbers = line_numbers
 
@@ -87,7 +87,7 @@ class MapValidation():
         Raises:
             MapValidationError: If an endpoint references an unknown zone or
                 a connection appears more than once, with the invalid
-                declartion's line number.
+                declaration's line number.
         """
         connections: set[tuple[str, str]] = set()
 

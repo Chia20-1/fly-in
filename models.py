@@ -25,7 +25,7 @@ class Drone:
     @classmethod
     def _new_id(cls) -> None:
         """
-        Increment the class counter used to assign the next drone identifier
+        Increment the class counter used to assign the next drone identifier.
         """
         cls.id += 1
 
@@ -60,8 +60,8 @@ class Zone:
             y: Vertical map coordinate.
             zone: Zone category: normal, blocked, restricted, or priority.
             color: Display color, or None if no color is specified.
-            max_drones: Maximum simultaneous occupancy, ignored for the
-                starting hun and destination hub.
+            max_drones: Maximum simultaneous occupancy. The scheduler ignores
+                this limit for the starting hub and destination hub.
         """
         self.name: str = name
         self.x: int = x
@@ -112,6 +112,9 @@ class Graph:
         drones: Drones initially placed at the starting hub.
         start_hub: Starting zone.
         end_hub: Destination zone.
+        zone_lookup: Mapping of zone names to Zone objects.
+        adjacency: Mapping of zone names to lists of neighboring Zone
+            and Connection pairs.
     """
     def __init__(
         self,
@@ -130,7 +133,7 @@ class Graph:
 
     def _init_all(self) -> None:
         """
-        Initialize and store all zones, connections, and drones.
+        Initialize zones, connections, drones, and graph lookup tables.
         """
         self.zones = self._init_zones()
         self.connections = self._init_connections()
@@ -153,10 +156,11 @@ class Graph:
 
     def _init_zones(self) -> list[Zone]:
         """
-        Create all zones and assign the starting and destination.
+        Create all zones and assign the starting and destination hubs.
 
         Returns:
-            Zones in starting hub, destination hub, then intermediate hub.
+            Zones ordered as the starting hub, destination hub, then
+            intermediate hub in configuration order.
         """
         zone_configs: list[ZoneConfig] = [
             self.config.start_hub,

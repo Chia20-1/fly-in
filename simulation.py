@@ -32,6 +32,9 @@ class Scheduler:
     route, delay departure until the full plan fits, then select the plan
     with the earliest final arrival. Previously reserved plans are unchanged.
 
+    Zone reservations count arrivals on a given turn, not occupancy across
+    turns while drones wait.
+
     Attributes:
         graph: Map containing the zones, connections, and endpoint hubs.
         output: Movements grouped by turn. Each movement contains a drone ID
@@ -82,7 +85,7 @@ class Scheduler:
             plan.append(PlannedArrival(turn, destination, connection))
         return plan
 
-    def _has_capacity_for_plan(self, plan: Plan) -> bool:
+    def _is_plan_feasible(self, plan: Plan) -> bool:
         """
         Check whether a plan fits within the existing reservations.
 
@@ -141,7 +144,7 @@ class Scheduler:
         departure_delay = 0
         plan = self._make_plan(route, departure_delay)
 
-        while not self._has_capacity_for_plan(plan):
+        while not self._is_plan_feasible(plan):
             departure_delay += 1
             plan = self._make_plan(route, departure_delay)
 
@@ -359,7 +362,10 @@ class Simulation:
 
         Replace the stored output with a newly built schedule, then apply
         each turn to update drone locations, transit records, and occupancy.
-        Intended for one run per instance; drone locations are not reset.
+        Append each end-of-turn snapshot to usage_history.
+
+        Intended for one run per instance; drone locations and usage history
+        are not reset.
 
         Returns:
             Movements grouped by simulation turn. Each movement contains a
