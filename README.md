@@ -25,7 +25,8 @@ make install
 
 This creates a virtual environment at `.venv/` and installs the runtime
 dependencies (`pydantic` and `pygame`) and development tools (`flake8`
-and `mypy`).
+and `mypy`). An internet connection is required to download these packages
+during installation. Once installed, the program can run offline.
 
 ### Run in text mode
 
@@ -53,6 +54,8 @@ Open a specific map in a Pygame window:
 ```sh
 make visual MAP=maps/medium/02_circular_loop.txt
 ```
+
+**Note:** Use `make visual`, not `make run visual`. Passing both targets runs the simulation twice: first in text mode, then in visualization mode.
 
 ### Run via the Python entry point
 
@@ -96,7 +99,46 @@ make fclean
 ```
 
 After `make fclean`, run `make install` before executing the program again.
- 
+
+# See It in Action
+
+## Example input
+
+```text
+# Easy Level 1: Simple linear path
+nb_drones: 2
+
+start_hub: start 0 0 [color=green]
+hub: waypoint1 1 0 [color=blue]
+hub: waypoint2 2 0 [color=blue]
+end_hub: goal 3 0 [color=red]
+
+connection: start-waypoint1
+connection: waypoint1-waypoint2
+connection: waypoint2-goal
+```
+
+## Run the example
+
+From the project root, run:
+
+```sh
+make run MAP=../maps/easy/01_linear_path.txt
+```
+
+## Expected output
+
+```text
+D1-waypoint1
+D1-waypoint2 D2-waypoint1
+D1-goal D2-waypoint2
+D2-goal
+```
+
+Each line represents one turn, and each entry identifies a drone and the zone
+it enters. With the default zone and connection capacities of one, the second
+drone follows one turn behind the first. A drone can enter a zone on the same
+turn that another drone leaves it. Both drones reach `goal` in four turns.
 
 # Architecture
 
@@ -237,37 +279,45 @@ users inspect route choices, zone occupancy, and movements one turn at a time.
 
 The window is divided into three areas:
 
-- **Header:** shows the current turn, total turn count, and movement messages.
-- **Map:** shows zones as circles and bidirectional connections as gray lines.
+- **Header:** shows the current turn and total turn count.
+- **Map:** shows zones as squares and bidirectional connections as gray lines.
 - **Footer:** contains the **Previous** and **Next** navigation buttons.
 
-Occupied zones are filled with their display color. Unoccupied zones have a
-white interior and a colored outline. Zones without a recognized color use
-gray as a fallback. These visual cues indicate occupancy, not the number or
-identity of drones sharing a zone.
+Each zone has a white interior and an outline in its configured color. Zones
+without a recognized color use gray as a fallback. Drone identifiers, such as
+`D1` and `D2`, are arranged in a grid inside their current zone. The identifier
+font shrinks to fit when multiple drones share a zone; the zone's fill color
+stays white regardless of occupancy.
 
-For restricted-zone travel, movement messages show the connection label during
-transit and the destination zone on arrival. Drones in transit are not currently
-drawn as markers on connections.
+Zone names appear below the squares, with underscores separating lines. On
+dense maps with more than 31 zones, zone names are hidden and squares are
+smaller to reduce clutter.
+
+Drones in transit through a connection are not drawn until they arrive at a
+zone. The visualization does not display movement messages or drone markers
+along connections.
 
 ## Sizing and readability
 
 The layout is calculated from the desktop size when the visualization starts:
 
-- The window uses 80% of the first desktop's width and height.
-- The header uses approximately 28% of the window height, and the footer uses
-  approximately 12.5%.
+- The window uses 96% of the first desktop's width and 90% of its height.
+- The header uses approximately 7% of the window height, and the footer uses
+  approximately 8%.
 - The map is scaled uniformly and centered in the remaining drawing area,
   preserving the proportions of its coordinates.
-- Margins, zone circles, buttons, and font size are calculated relative to the
-  window dimensions, with minimum sizes for circles and text.
-- Movement messages use up to three columns. Long messages are shortened with
-  `...`, and overflow is summarized as `+ N more movements` when space permits.
+- Zone squares use 8% of the smaller window dimension, or 6% on dense maps,
+  with a minimum side length of 8 pixels.
+- Margins, buttons, and label fonts scale with the window dimensions. Space
+  below the map is reserved for zone names when they are shown.
+- Drone identifiers use an automatically sized grid and font to fit inside
+  each zone. Large groups of drones can make individual identifiers difficult
+  to read.
 
 The window size is chosen at startup. The current implementation does not
 support dragging the window borders to resize it or recalculating the layout
-when the desktop resolution changes during playback. Very small displays may
-leave insufficient space for movement details.
+when the desktop resolution changes during playback. Very small displays or
+densely packed map coordinates may cause zones or labels to overlap.
 
 ## Playback controls
 
@@ -289,8 +339,12 @@ turns advance only when a navigation button is clicked.
 
 ## AI Usage
 
-AI was used as a writing and learning assistant. It helped with:
-- Improving the wording and grammar of the README and documentation.
-- Refining PEP 257 docstrings.
+AI was used as a writing and learning assistant to support the following tasks:
 
-All AI-generated content was reviewed, understood, tested where applicable, and modified before being incorporated into the project.
+- Improving the clarity, wording, and grammar of the README and documentation.
+- Refining docstrings to follow PEP 257 conventions.
+- Suggesting window dimensions, layout proportions, and element sizes for the
+  Pygame visualization.
+
+All AI-assisted contributions were reviewed, understood, and adapted before
+being incorporated into the project, with testing performed where applicable.
