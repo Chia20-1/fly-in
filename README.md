@@ -118,12 +118,12 @@ connection: waypoint1-waypoint2
 connection: waypoint2-goal
 ```
 
-## Run the example
+## Text mode
 
-From the project root, run:
+Run this map from the project root:
 
 ```sh
-make run MAP=../maps/easy/01_linear_path.txt
+make run MAP=./maps/easy/01_linear_path.txt
 ```
 
 ## Expected output
@@ -135,10 +135,21 @@ D1-goal D2-waypoint2
 D2-goal
 ```
 
-Each line represents one turn, and each entry identifies a drone and the zone
-it enters. With the default zone and connection capacities of one, the second
-drone follows one turn behind the first. A drone can enter a zone on the same
-turn that another drone leaves it. Both drones reach `goal` in four turns.
+Each line is one turn. Entries such as `D1-waypoint1` show the drone and the
+zone it enters. With a capacity of one per zone and connection, `D2` follows
+one turn behind `D1`. Both drones reach `goal` in four turns.
+
+## Visual mode
+
+Open the same map in the Pygame window:
+
+```sh
+make visual MAP=./maps/easy/01_linear_path.txt
+```
+
+Use **Next** and **Previous** to step through the turns.
+
+![Fly-in simulation in the Pygame visualization window](visual_example.png)
 
 # Architecture
 
