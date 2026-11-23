@@ -55,20 +55,44 @@ class Renderer:
     def _init_layout(self) -> None:
         """Calculate layout dimensions from the window size."""
         base_size = min(self.width, self.height)
-        self.margin = round(base_size * 0.055)
+        self.margin_x = round(base_size * 0.055)
+        self.margin_y = round(base_size * 0.01)
 
         self.is_dense_map = len(self.graph.zones) > 31
         zone_ratio = 0.06 if self.is_dense_map else 0.08
-
         self.zone_size = max(8, round(base_size * zone_ratio))
+
         self.header_height = round(self.height * 0.07)
-        self.footer_height = round(self.height * 0.125)
-        self.available_width = self.width - (2 * self.margin)
+        self.footer_height = round(self.height * 0.08)
+
+        self.label_font = pygame.font.Font(
+            None, max(12, round(self.height * 0.018))
+        )
+
+        label_height = 0
+        if not self.is_dense_map:
+            label_rows = max(
+                len(zone.name.split("_"))
+                for zone in self.graph.zones
+            )
+            label_height = (
+                4 + label_rows * self.label_font.get_linesize()
+            )
+
+        self.map_left = self.margin_x + self.zone_size / 2
+        self.map_top = (
+            self.header_height + self.margin_y + self.zone_size / 2
+        )
+        self.available_width = (
+            self.width - (2 * self.margin_x) - self.zone_size
+        )
         self.available_height = (
             self.height
             - self.header_height
             - self.footer_height
-            - 2 * self.margin
+            - 2 * self.margin_y
+            - self.zone_size
+            - label_height
         )
 
     def _init_window_size(self) -> None:
@@ -157,16 +181,14 @@ class Renderer:
             scales.append(self.available_width / span_x)
         if span_y > 0:
             scales.append(self.available_height / span_y)
-        zoom = 0.9
-        self.scale = (min(scales) if scales else 1.0) * zoom
+        self.scale = (min(scales) if scales else 1.0)
         self.offset_x = (
-            self.margin
+            self.map_left
             + ((self.available_width - span_x * self.scale) / 2)
             - min_x * self.scale
         )
         self.offset_y = (
-            self.header_height
-            + self.margin
+            self.map_top
             + ((self.available_height - span_y * self.scale) / 2)
             - min_y * self.scale
         )
@@ -252,25 +274,36 @@ class Renderer:
 
     def _draw_drones(self) -> None:
         for zone in self.graph.zones:
-            count = sum(
-                location == zone.name
-                for location in self.positions.values()
-            )
-            if count == 0:
+            drone_ids = [
+                drone_id
+                for drone_id, location in self.positions.items()
+                if location == zone.name
+            ]
+            if not drone_ids:
                 continue
 
-            columns = math.ceil(math.sqrt(count))
-            rows = math.ceil(count / columns)
+            columns = math.ceil(math.sqrt(len(drone_ids)))
+            rows = math.ceil(len(drone_ids) / columns)
 
             available_size = self.zone_size * 0.8
             cell_size = available_size / columns
-            radius = max(1, int(cell_size * 0.3))
+
+            font_size = max(1, int(cell_size * 0.8))
+            font = pygame.font.Font(None, font_size)
+            longest_label = f"d{max(drone_ids)}"
+
+            while font_size > 1:
+                width, height = font.size(longest_label)
+                if width <= cell_size * 0.9 and height <= cell_size * 0.9:
+                    break
+                font_size -= 1
+                font = pygame.font.Font(None, font_size)
 
             center_x, center_y = self._to_screen(zone.x, zone.y)
             left = center_x - columns * cell_size / 2
             top = center_y - rows * cell_size / 2
 
-            for index in range(count):
+            for index, drone_id in enumerate(drone_ids):
                 column = index % columns
                 row = index // columns
 
@@ -278,17 +311,17 @@ class Renderer:
                     round(left + (column + 0.5) * cell_size),
                     round(top + (row + 0.5) * cell_size),
                 )
-
-                pygame.draw.circle(self.screen, "#202020", position, radius)
+                text = font.render(
+                    f"D{drone_id}", True, COLORS["charcoal"]
+                )
+                rect = text.get_rect(center=position)
+                self.screen.blit(text, rect)
 
     def _draw_zone_names(self) -> None:
         if self.is_dense_map:
             return
 
-        font = pygame.font.Font(
-            None,
-            max(12, round(self.height * 0.018))
-        )
+        font = self.label_font
 
         for zone in self.graph.zones:
             x, y = self._to_screen(zone.x, zone.y)
