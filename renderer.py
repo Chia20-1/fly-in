@@ -11,7 +11,7 @@ COLORS = {
     "blue": "#0000FF",
     "gray": "#808080",
     "white": "#FFFFFF",
-    "black": "#000000",
+    "black": "#202020",
     "orange": "#FFA500",
     "purple": "#800080",
     "pink": "#FFC0CB",
@@ -20,7 +20,6 @@ COLORS = {
     "brown": "#A52A2A",
     "lime": "#b9ff66",
     "gold": "#FFD700",
-    "charcoal": "#202020",
 }
 
 
@@ -219,10 +218,10 @@ class Renderer:
 
             pygame.draw.line(
                 self.screen,
-                COLORS["gray"],
+                COLORS["pink"],
                 self._to_screen(start.x, start.y),
                 self._to_screen(end.x, end.y),
-                1,
+                5,
             )
 
         for zone in self.graph.zones:
@@ -240,7 +239,7 @@ class Renderer:
                 self.screen, COLORS["white"], zone_rect
             )
             pygame.draw.rect(
-                self.screen, color, zone_rect, width=6
+                self.screen, color, zone_rect, width=10
             )
         self._draw_drones()
         self._draw_zone_names()
@@ -288,7 +287,7 @@ class Renderer:
                     round(top + (row + 0.5) * cell_size),
                 )
                 text = font.render(
-                    f"D{drone_id}", True, COLORS["charcoal"]
+                    f"D{drone_id}", True, COLORS["black"]
                 )
                 rect = text.get_rect(center=position)
                 self.screen.blit(text, rect)
