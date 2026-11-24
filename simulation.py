@@ -29,8 +29,7 @@ class Scheduler:
     route, delay departure until the full plan fits, then select the plan
     with the earliest final arrival. Previously reserved plans are unchanged.
 
-    Zone reservations count arrivals on a given turn, not occupancy across
-    turns while drones wait.
+    Zone reservations count arrivals on a given turn.
 
     Attributes:
         graph: Map containing the zones, connections, and endpoint hubs.
@@ -223,13 +222,11 @@ class Simulation:
 
     Use the router to obtain candidate routes and the scheduler to plan
     movement for all drones. Apply the schedule one turn at a time,
-    updating drone locations, connection transit, and zone occupancy.
+    updating drone locations, and connection transit.
 
     Attributes:
         graph: Map containing the zones, connections, hubs, and drones.
         router: Route finder used to obtain candidate routes.
-        occupancy: Number of drones currently in each zone, excluding
-            drones in transit.
         in_transit: Connection labels keyed by the IDs of drones
             currently crossing connections.
         output: Scheduled movements grouped by turn. Each movement
@@ -256,9 +253,7 @@ class Simulation:
         }
         self._positions: dict[int, str] = {}
         self.in_transit: dict[int, str] = {}
-        self.occupancy: dict[Zone, int] = {zone: 0 for zone in graph.zones}
         for drone in graph.drones:
-            self.occupancy[drone.current_zone] += 1
             self._positions[drone.id] = drone.current_zone.name
         self.output: SimulationOutput = []
         self.usage_history: list[TurnSnapshot] = []
@@ -313,7 +308,7 @@ class Simulation:
         turn: Turn,
     ) -> TurnSnapshot:
         """
-        Apply one turn of scheduled movements and refresh zone occupancy.
+        Apply one turn of scheduled movements.
 
         Treat locations found in the graph's zone lookup as zone arrivals.
         Update those drones' current zones and remove their transit records.
@@ -332,8 +327,6 @@ class Simulation:
         """
         for drone_id, location in turn:
             drone = self._drones_by_id[drone_id]
-            if drone_id not in self.in_transit:
-                self.occupancy[drone.current_zone] -= 1
 
             destination = self.graph.zone_lookup.get(location)
             if destination is None:
@@ -341,7 +334,6 @@ class Simulation:
             else:
                 self.in_transit.pop(drone_id, None)
                 drone.current_zone = destination
-                self.occupancy[destination] += 1
 
             self._positions[drone_id] = location
 
@@ -352,7 +344,7 @@ class Simulation:
         Build and apply the complete movement schedule.
 
         Replace the stored output with a newly built schedule, then apply
-        each turn to update drone locations, transit records, and occupancy.
+        each turn to update drone locations, and transit records.
         Append each end-of-turn snapshot to usage_history.
 
         Intended for one run per instance; drone locations and usage history
@@ -370,3 +362,4 @@ class Simulation:
             self.usage_history.append(snapshot)
 
         return self.output
+
