@@ -78,7 +78,7 @@ Run linter-standard check and type annotation check:
 make lint
 ```
 
-Run stricter code-style and type check:
+Run the same code-style checks with stricter type checking:
 ```sh
 make lint-strict
 ```
@@ -156,10 +156,10 @@ Use **Next** and **Previous** to step through the turns.
 ## Project structure
 
 ```text
-fly-in/
-|-- .gitignore
-|-- Makefile
-|-- README.md
+fly-in-submission/
+|-- .gitignore         # Files excluded from version control
+|-- Makefile           # Installation, execution, linting, and cleanup commands
+|-- README.md          # Project documentation
 |-- main.py            # Command-line arguments and program orchestration
 |-- map_parser.py      # Map syntax, declaration order, and source line numbers
 |-- map_config.py      # Pydantic models and numeric field validation
@@ -170,7 +170,7 @@ fly-in/
 |-- text_output.py     # Terminal movement output
 |-- renderer.py        # Interactive Pygame visualization
 |-- error.py           # Custom parsing and map-validation exceptions
-|-- maps/              # Easy, medium, hard, and challenger maps
+|-- visual_example.png # Screenshot of visualization mode
 ```
 
 ## Execution flow
@@ -230,12 +230,12 @@ errors are handled in visualization mode. Failed execution exits with a nonzero
 status.
 
 # Map Config
-| Entity | Attributes |
-| --- | --- |
-| Zone | x-coordinate, y-coordinate, type: [hub, start_hub, end_hub], [metadata] |
-| Connection | type: [normal, blocked, restricted, priority], current drone, from_zone, to_zone |
-| Graph | zone, Connection, Start Hub, End Hub |
-| Drone | id, state |
+
+**MapConfig:** `nb_drones`, `start_hub`, `end_hub`, `hub`, `connection`.
+
+**ZoneConfig:** `name`, `x`, `y`. Metadata: `zone` (normal, blocked, restricted, priority), `color` (display color), `max_drones` (capacity; default: 1; start/end hubs unlimited).
+
+**ConnectionConfig:** `from_zone`, `to_zone`. Metadata: `max_link_capacity` (capacity; default: 1).
 
 # Algorithm
 
@@ -291,7 +291,7 @@ users inspect route choices, zone occupancy, and movements one turn at a time.
 The window is divided into three areas:
 
 - **Header:** shows the current turn and total turn count.
-- **Map:** shows zones as squares and bidirectional connections as gray lines.
+- **Map:** shows zones as squares and bidirectional connections as pink lines.
 - **Footer:** contains the **Previous** and **Next** navigation buttons.
 
 Each zone has a white interior and an outline in its configured color. Zones
